@@ -1,11 +1,13 @@
 import json
+from multiprocessing import Queue
+from Queue import Empty
 
 import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
 import sure  # flake8: noqa
 
-from pyqs.worker import ReadWorker, ProcessWorker, internal_queue
+from pyqs.worker import ReadWorker, ProcessWorker
 from tests.tasks import task_results
 
 
@@ -25,10 +27,11 @@ def test_worker_fills_internal_queue():
     message.set_body(body)
     queue.write(message)
 
-    worker = ReadWorker(queue)
-    worker.read_queue()
+    internal_queue = Queue()
+    worker = ReadWorker(queue, internal_queue)
+    worker.read_message()
 
-    found_message = internal_queue.get()
+    found_message = internal_queue.get(timeout=1)
 
     found_message.should.equal({
         'task': 'tests.tasks.index_incrementer',
@@ -49,10 +52,11 @@ def test_worker_fills_internal_queue_from_celery_task():
     message.set_body(body)
     queue.write(message)
 
-    worker = ReadWorker(queue)
-    worker.read_queue()
+    internal_queue = Queue()
+    worker = ReadWorker(queue, internal_queue)
+    worker.read_message()
 
-    found_message = internal_queue.get()
+    found_message = internal_queue.get(timeout=1)
 
     found_message.should.equal({
         'task': 'tests.tasks.index_incrementer',
@@ -71,9 +75,24 @@ def test_worker_processes_tasks_from_internal_queue():
             'message': 'Test message',
         },
     }
-    worker = ProcessWorker()
+    internal_queue = Queue()
     internal_queue.put(message)
 
-    worker.process_messages()
+    worker = ProcessWorker(internal_queue)
+    worker.process_message()
 
     task_results.should.equal(['Test message'])
+
+    try:
+        internal_queue.get(timeout=1)
+    except Empty:
+        pass
+    else:
+        raise AssertionError("The internal queue should be empty")
+
+
+def test_worker_processes_empty_queue():
+    internal_queue = Queue()
+
+    worker = ProcessWorker(internal_queue)
+    worker.process_message()

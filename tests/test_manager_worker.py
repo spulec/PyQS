@@ -29,10 +29,10 @@ def test_manager_worker_with_queue_prefix():
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children
     # Pull all the read children and sort by name to make testing easier
-    sorted_children = sorted(children, key=lambda child: child._target.queue.name)
+    sorted_children = sorted(children, key=lambda child: child.queue.name)
 
-    sorted_children[0]._target.queue.name.should.equal("email.baz")
-    sorted_children[1]._target.queue.name.should.equal("email.foobar")
+    sorted_children[0].queue.name.should.equal("email.baz")
+    sorted_children[1].queue.name.should.equal("email.foobar")
 
 
 @mock_sqs

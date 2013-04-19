@@ -1,13 +1,12 @@
 import fnmatch
 import importlib
-from multiprocessing import Process, Queue
+from multiprocessing import Event, Process, Queue
 import os
+from Queue import Empty
 
 import boto
 
 from pyqs.utils import decode_message
-
-internal_queue = Queue()
 
 conn = None
 
@@ -22,29 +21,54 @@ def get_conn():
         return conn
 
 
-class ReadWorker(object):
+class BaseWorker(Process):
+    def __init__(self, *args, **kwargs):
+        super(BaseWorker, self).__init__(*args, **kwargs)
+        self.should_exit = Event()
 
-    def __init__(self, queue):
+    def shutdown(self):
+        print "Shutdown initiated"
+        self.should_exit.set()
+
+
+class ReadWorker(BaseWorker):
+
+    def __init__(self, queue, internal_queue, *args, **kwargs):
+        super(ReadWorker, self).__init__(*args, **kwargs)
         self.queue = queue
+        self.internal_queue = internal_queue
 
-    def __call__(self):
+    def run(self):
         print "Running ReadWorker: {}, pid: {}".format(self.queue.name, os.getpid())
+        while not self.should_exit.is_set():
+            self.read_message()
 
-    def read_queue(self):
+    def read_message(self):
         message = self.queue.read()
-        message_body = decode_message(message)
-        message.delete()
+        if message:
+            message_body = decode_message(message)
+            message.delete()
 
-        internal_queue.put(message_body)
+            self.internal_queue.put(message_body)
 
 
-class ProcessWorker(object):
+class ProcessWorker(BaseWorker):
 
-    def __call__(self):
+    def __init__(self, internal_queue, *args, **kwargs):
+        super(ProcessWorker, self).__init__(*args, **kwargs)
+        self.internal_queue = internal_queue
+
+    def run(self):
         print "Running ProcessWorker, pid: {}".format(os.getpid())
+        while not self.should_exit.is_set():
+            self.process_message()
 
-    def process_messages(self):
-        next_message = internal_queue.get()
+    def process_message(self):
+        try:
+            next_message = self.internal_queue.get(timeout=2)
+        except Empty:
+            print "nothing on internal queue"
+            return
 
         task_path = next_message['task']
         args = next_message['args']
@@ -64,16 +88,15 @@ class ManagerWorker(object):
     def __init__(self, queue_prefix, worker_concurrency=1):
         self.queue_prefix = queue_prefix
         self.queues = self.get_queues_from_queue_prefix(self.queue_prefix)
+        self.internal_queue = Queue()
         self.reader_children = []
         self.worker_children = []
 
         for queue in self.queues:
-            worker = Process(target=ReadWorker(queue))
-            self.reader_children.append(worker)
+            self.reader_children.append(ReadWorker(queue, self.internal_queue))
 
         for index in range(worker_concurrency):
-            worker = Process(target=ProcessWorker())
-            self.worker_children.append(worker)
+            self.worker_children.append(ProcessWorker(self.internal_queue))
 
     def get_queues_from_queue_prefix(self, queue_prefix):
         all_queues = get_conn().get_all_queues()
@@ -90,6 +113,11 @@ class ManagerWorker(object):
 
     def stop(self):
         for child in self.reader_children:
+            child.shutdown()
+        for child in self.reader_children:
             child.join()
+
+        for child in self.worker_children:
+            child.shutdown()
         for child in self.worker_children:
             child.join()
