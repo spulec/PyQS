@@ -1,0 +1,4 @@
+pyqs.egg-info/*
+dist/*
+.coverage
+*.pyc
