@@ -37,6 +37,8 @@ Or to run all tasks
 $ pyqs email.*
 ```
 
+This is based on Python's [fnmatch](http://docs.python.org/2/library/fnmatch.html).
+
 
 ## Exception Handling
 - 'failure' queue?
