@@ -48,7 +48,7 @@ def test_worker_fills_internal_queue_from_celery_task():
     queue = conn.create_queue("tester")
 
     message = Message()
-    body = 'eyJib2R5IjogIktHUndNQXBUSjNSaGMyc25DbkF4Q2xNbmRHVnpkSE11ZEdGemEzTXVhVzVrWlho\nZmFXNWpjbVZ0Wlc1MFpYSW5DbkF5Q25OVEoyRnlcblozTW5DbkF6Q2loc2NEUUtjMU1uYTNkaGNt\nZHpKd3B3TlFvb1pIQTJDbE1uYldWemMyRm5aU2NLY0RjS1V5ZFVaWE4wSUcxbGMzTmhcbloyVXlK\nd3B3T0FwemN5ND1cbiIsICJzb21lIHN0dWZmIjogImFzZGZhc2YifQ==\n'
+    body = '{"body": "KGRwMApTJ3Rhc2snCnAxClMndGVzdHMudGFza3MuaW5kZXhfaW5jcmVtZW50ZXInCnAyCnNTJ2Fy\\nZ3MnCnAzCihscDQKc1Mna3dhcmdzJwpwNQooZHA2ClMnbWVzc2FnZScKcDcKUydUZXN0IG1lc3Nh\\nZ2UyJwpwOApzcy4=\\n", "some stuff": "asdfasf"}'
     message.set_body(body)
     queue.write(message)
 

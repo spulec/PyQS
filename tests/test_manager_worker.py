@@ -24,7 +24,7 @@ def test_manager_worker_with_queue_prefix():
     queue = conn.create_queue("email.foobar")
     queue = conn.create_queue("email.baz")
 
-    manager = ManagerWorker(queue_prefix='email.*')
+    manager = ManagerWorker(queue_prefix='email.*', worker_concurrency=1)
 
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children

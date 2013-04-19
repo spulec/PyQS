@@ -67,9 +67,9 @@ class ProcessWorker(BaseWorker):
         try:
             next_message = self.internal_queue.get(timeout=2)
         except Empty:
-            print "nothing on internal queue"
             return
 
+        print "next_message", next_message
         task_path = next_message['task']
         args = next_message['args']
         kwargs = next_message['kwargs']
@@ -85,7 +85,7 @@ class ProcessWorker(BaseWorker):
 
 class ManagerWorker(object):
 
-    def __init__(self, queue_prefix, worker_concurrency=1):
+    def __init__(self, queue_prefix, worker_concurrency):
         self.queue_prefix = queue_prefix
         self.queues = self.get_queues_from_queue_prefix(self.queue_prefix)
         self.internal_queue = Queue()
@@ -121,3 +121,8 @@ class ManagerWorker(object):
             child.shutdown()
         for child in self.worker_children:
             child.join()
+
+
+def main(queue_prefix="a_test", concurrency=1):
+    manager = ManagerWorker(queue_prefix, concurrency)
+    manager.start()
