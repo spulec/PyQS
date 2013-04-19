@@ -1,6 +1,7 @@
 import fnmatch
 import importlib
-from multiprocessing import Queue
+from multiprocessing import Process, Queue
+import os
 
 import boto
 
@@ -26,6 +27,9 @@ class ReadWorker(object):
     def __init__(self, queue):
         self.queue = queue
 
+    def __call__(self):
+        print "Running ReadWorker: {}, pid: {}".format(self.queue.name, os.getpid())
+
     def read_queue(self):
         message = self.queue.read()
         message_body = decode_message(message)
@@ -35,6 +39,10 @@ class ReadWorker(object):
 
 
 class ProcessWorker(object):
+
+    def __call__(self):
+        print "Running ProcessWorker, pid: {}".format(os.getpid())
+
     def process_messages(self):
         next_message = internal_queue.get()
 
@@ -60,10 +68,12 @@ class ManagerWorker(object):
         self.worker_children = []
 
         for queue in self.queues:
-            self.reader_children.append(ReadWorker(queue))
+            worker = Process(target=ReadWorker(queue))
+            self.reader_children.append(worker)
 
         for index in range(worker_concurrency):
-            self.worker_children.append(ProcessWorker())
+            worker = Process(target=ProcessWorker())
+            self.worker_children.append(worker)
 
     def get_queues_from_queue_prefix(self, queue_prefix):
         all_queues = get_conn().get_all_queues()
@@ -71,3 +81,15 @@ class ManagerWorker(object):
             queue for queue in all_queues if
             fnmatch.fnmatch(queue.name, queue_prefix)
         ]
+
+    def start(self):
+        for child in self.reader_children:
+            child.start()
+        for child in self.worker_children:
+            child.start()
+
+    def stop(self):
+        for child in self.reader_children:
+            child.join()
+        for child in self.worker_children:
+            child.join()
