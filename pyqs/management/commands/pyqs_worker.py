@@ -2,7 +2,7 @@ from optparse import make_option
 
 from django.core.management.base import BaseCommand
 
-from pyqs.worker import main
+from pyqs.worker import _main
 
 
 class Command(BaseCommand):
@@ -24,4 +24,4 @@ class Command(BaseCommand):
         queues = [queue for queue in args]
         concurrency = kwargs['concurrency']
 
-        main(queue_prefixes=queues, concurrency=concurrency)
+        _main(queue_prefixes=queues, concurrency=concurrency)

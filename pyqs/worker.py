@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
 import fnmatch
 import importlib
 from multiprocessing import Event, Process, Queue
+from optparse import OptionParser
 import os
 from Queue import Empty
 
@@ -126,6 +129,19 @@ class ManagerWorker(object):
             child.join()
 
 
-def main(queue_prefixes, concurrency=5):
+def main():
+    parser = OptionParser(usage="usage: pyqs queue_prefix")
+    parser.add_option(
+        "-c",
+        "--concurrency",
+        dest="concurrency",
+        default=1,
+        help="Worker concurrency"
+    )
+    options, args = parser.parse_args()
+    _main(args, **options)
+
+
+def _main(queue_prefixes, concurrency=5):
     manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()

@@ -12,7 +12,7 @@ from mock import patch
 from moto import mock_sqs
 
 
-@patch("pyqs.management.commands.pyqs_worker.main")
+@patch("pyqs.management.commands.pyqs_worker._main")
 @mock_sqs
 def test_management_command(pyqs_worker_main):
     call_command("pyqs_worker", "email1", "email2", concurrency=2)

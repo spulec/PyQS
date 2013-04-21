@@ -2,7 +2,7 @@ import boto
 from mock import patch
 from moto import mock_sqs
 
-from pyqs.worker import ManagerWorker, main
+from pyqs.worker import ManagerWorker, main, _main
 
 
 @mock_sqs
@@ -59,7 +59,17 @@ def test_manager_start_and_stop():
 @patch("pyqs.worker.ManagerWorker")
 @mock_sqs
 def test_main_method(ManagerWorker):
-    main(["email1", "email2"], concurrency=2)
+    _main(["email1", "email2"], concurrency=2)
 
     ManagerWorker.assert_called_once_with(['email1', 'email2'], 2)
     ManagerWorker.return_value.start.assert_called_once_with()
+
+
+@patch("pyqs.worker._main")
+@patch("pyqs.worker.OptionParser")
+@mock_sqs
+def test_real_main_method(OptionParser, _main):
+    OptionParser.return_value.parse_args.return_value = ({'concurrency': 3}, 'email1')
+    main()
+
+    _main.assert_called_once_with('email1', concurrency=3)
