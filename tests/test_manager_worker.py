@@ -1,7 +1,8 @@
 import boto
+from mock import patch
 from moto import mock_sqs
 
-from pyqs.worker import ManagerWorker
+from pyqs.worker import ManagerWorker, main
 
 
 @mock_sqs
@@ -53,3 +54,12 @@ def test_manager_start_and_stop():
 
     manager.worker_children[0].is_alive().should.equal(False)
     manager.worker_children[1].is_alive().should.equal(False)
+
+
+@patch("pyqs.worker.ManagerWorker")
+@mock_sqs
+def test_main_method(ManagerWorker):
+    main(["email1", "email2"], concurrency=2)
+
+    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2)
+    ManagerWorker.return_value.start.assert_called_once_with()
