@@ -2,6 +2,7 @@
 
 import fnmatch
 import importlib
+import logging
 from multiprocessing import Event, Process, Queue
 from optparse import OptionParser
 import os
@@ -11,6 +12,7 @@ import boto
 
 from pyqs.utils import decode_message
 
+logger = logging.getLogger("pyqs")
 conn = None
 
 
@@ -72,17 +74,23 @@ class ProcessWorker(BaseWorker):
         except Empty:
             return
 
-        task_path = next_message['task']
+        full_task_path = next_message['task']
         args = next_message['args']
         kwargs = next_message['kwargs']
 
-        task_name = task_path.split(".")[-1]
-        task_path = ".".join(task_path.split(".")[:-1])
+        task_name = full_task_path.split(".")[-1]
+        task_path = ".".join(full_task_path.split(".")[:-1])
 
         task_module = importlib.import_module(task_path)
 
         task = getattr(task_module, task_name)
         task(*args, **kwargs)
+        logger.info(
+            "Processing task %s with args: %s and kwargs: %s",
+            full_task_path,
+            repr(args),
+            repr(kwargs),
+        )
 
 
 class ManagerWorker(object):
