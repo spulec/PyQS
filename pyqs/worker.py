@@ -88,7 +88,7 @@ class ProcessWorker(BaseWorker):
         try:
             task(*args, **kwargs)
         except Exception:
-            logger.warning(
+            logger.error(
                 "Task %s raised error: with args: %s and kwargs: %s: %s",
                 full_task_path,
                 args,
