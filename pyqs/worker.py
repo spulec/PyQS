@@ -44,8 +44,8 @@ class ReadWorker(BaseWorker):
             self.read_message()
 
     def read_message(self):
-        message = self.queue.read()
-        if message:
+        messages = self.queue.get_messages(10)
+        for message in messages:
             message_body = decode_message(message)
             message.delete()
 
@@ -69,7 +69,6 @@ class ProcessWorker(BaseWorker):
         except Empty:
             return
 
-        print "next_message", next_message
         task_path = next_message['task']
         args = next_message['args']
         kwargs = next_message['kwargs']
@@ -85,9 +84,9 @@ class ProcessWorker(BaseWorker):
 
 class ManagerWorker(object):
 
-    def __init__(self, queue_prefix, worker_concurrency):
-        self.queue_prefix = queue_prefix
-        self.queues = self.get_queues_from_queue_prefix(self.queue_prefix)
+    def __init__(self, queue_prefixes, worker_concurrency):
+        self.queue_prefixes = queue_prefixes
+        self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.internal_queue = Queue()
         self.reader_children = []
         self.worker_children = []
@@ -98,12 +97,16 @@ class ManagerWorker(object):
         for index in range(worker_concurrency):
             self.worker_children.append(ProcessWorker(self.internal_queue))
 
-    def get_queues_from_queue_prefix(self, queue_prefix):
+    def get_queues_from_queue_prefixes(self, queue_prefixes):
         all_queues = get_conn().get_all_queues()
-        return [
-            queue for queue in all_queues if
-            fnmatch.fnmatch(queue.name, queue_prefix)
-        ]
+
+        matching_queues = []
+        for prefix in queue_prefixes:
+            matching_queues.extend([
+                queue for queue in all_queues if
+                fnmatch.fnmatch(queue.name, prefix)
+            ])
+        return matching_queues
 
     def start(self):
         for child in self.reader_children:
@@ -123,6 +126,6 @@ class ManagerWorker(object):
             child.join()
 
 
-def main(queue_prefix="a_test", concurrency=1):
-    manager = ManagerWorker(queue_prefix, concurrency)
+def main(queue_prefixes, concurrency=5):
+    manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()

@@ -5,7 +5,6 @@ from Queue import Empty
 import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
-import sure  # flake8: noqa
 
 from pyqs.worker import ReadWorker, ProcessWorker
 from tests.tasks import task_results

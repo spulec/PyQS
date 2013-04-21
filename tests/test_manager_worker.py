@@ -1,8 +1,5 @@
-import os
-
 import boto
 from moto import mock_sqs
-import sure  # flake8: noqa
 
 from pyqs.worker import ManagerWorker
 
@@ -10,9 +7,9 @@ from pyqs.worker import ManagerWorker
 @mock_sqs
 def test_manager_worker_create_proper_children_workers():
     conn = boto.connect_sqs()
-    queue = conn.create_queue("email")
+    conn.create_queue("email")
 
-    manager = ManagerWorker(queue_prefix='email', worker_concurrency=3)
+    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=3)
 
     len(manager.reader_children).should.equal(1)
     len(manager.worker_children).should.equal(3)
@@ -21,10 +18,10 @@ def test_manager_worker_create_proper_children_workers():
 @mock_sqs
 def test_manager_worker_with_queue_prefix():
     conn = boto.connect_sqs()
-    queue = conn.create_queue("email.foobar")
-    queue = conn.create_queue("email.baz")
+    conn.create_queue("email.foobar")
+    conn.create_queue("email.baz")
 
-    manager = ManagerWorker(queue_prefix='email.*', worker_concurrency=1)
+    manager = ManagerWorker(queue_prefixes=['email.*'], worker_concurrency=1)
 
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children
@@ -38,12 +35,11 @@ def test_manager_worker_with_queue_prefix():
 @mock_sqs
 def test_manager_start_and_stop():
     conn = boto.connect_sqs()
-    queue = conn.create_queue("email")
+    conn.create_queue("email")
 
-    manager = ManagerWorker(queue_prefix='email', worker_concurrency=2)
+    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=2)
 
     len(manager.worker_children).should.equal(2)
-    curr_pid = os.getpid()
 
     manager.worker_children[0].is_alive().should.equal(False)
     manager.worker_children[1].is_alive().should.equal(False)
