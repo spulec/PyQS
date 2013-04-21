@@ -7,6 +7,7 @@ from multiprocessing import Event, Process, Queue
 from optparse import OptionParser
 import os
 from Queue import Empty
+import traceback
 
 import boto
 
@@ -84,13 +85,23 @@ class ProcessWorker(BaseWorker):
         task_module = importlib.import_module(task_path)
 
         task = getattr(task_module, task_name)
-        task(*args, **kwargs)
-        logger.info(
-            "Processing task %s with args: %s and kwargs: %s",
-            full_task_path,
-            repr(args),
-            repr(kwargs),
-        )
+        try:
+            task(*args, **kwargs)
+        except Exception:
+            logger.warning(
+                "Task %s raised error: with args: %s and kwargs: %s: %s",
+                full_task_path,
+                args,
+                kwargs,
+                traceback.format_exc(),
+            )
+        else:
+            logger.info(
+                "Processing task %s with args: %s and kwargs: %s",
+                full_task_path,
+                repr(args),
+                repr(kwargs),
+            )
 
 
 class ManagerWorker(object):

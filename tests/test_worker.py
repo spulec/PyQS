@@ -131,6 +131,36 @@ def test_worker_processes_tasks_and_logs_correctly():
     logger.handlers[0].messages['info'].should.equal([expected_result])
 
 
+def test_worker_processes_tasks_and_logs_warning_correctly():
+    logger = logging.getLogger("pyqs")
+    logger.handlers.append(MockLoggingHandler())
+    message = {
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 23,
+        },
+    }
+    internal_queue = Queue()
+    internal_queue.put(message)
+
+    worker = ProcessWorker(internal_queue)
+    worker.process_message()
+
+    base_dir = "/Users/spulec/Development/"
+    expected_result = (
+        "Task tests.tasks.index_incrementer raised error: with"
+        " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
+        ':\n  File "%sPyQS/pyqs/worker.py", line 89, in '
+        "process_message\n    task(*args, **kwargs)\n  File "
+        '"%sPyQS/tests/tasks.py", line 8, in '
+        'index_incrementer\n    raise ValueError("Need to be given basestring, was '
+        'given {}".format(message))\nValueError: Need to be given basestring, was '
+        "given 23\n" % (base_dir, base_dir)
+    )
+    logger.handlers[0].messages['warning'].should.equal([expected_result])
+
+
 def test_worker_processes_empty_queue():
     internal_queue = Queue()
 
