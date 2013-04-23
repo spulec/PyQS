@@ -7,6 +7,8 @@ from multiprocessing import Event, Process, Queue
 from optparse import OptionParser
 import os
 from Queue import Empty, Full
+import signal
+import sys
 import traceback
 
 import boto
@@ -34,7 +36,6 @@ class BaseWorker(Process):
         self.should_exit = Event()
 
     def shutdown(self):
-        print "Shutdown initiated"
         self.should_exit.set()
 
 
@@ -46,6 +47,9 @@ class ReadWorker(BaseWorker):
         self.internal_queue = internal_queue
 
     def run(self):
+        # Set the child process to not receive any keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         print "Running ReadWorker: {}, pid: {}".format(self.queue.name, os.getpid())
         while not self.should_exit.is_set():
             self.read_message()
@@ -70,6 +74,9 @@ class ProcessWorker(BaseWorker):
         self.internal_queue = internal_queue
 
     def run(self):
+        # Set the child process to not receive any keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         print "Running ProcessWorker, pid: {}".format(os.getpid())
         while not self.should_exit.is_set():
             self.process_message()
@@ -152,6 +159,16 @@ class ManagerWorker(object):
         for child in self.worker_children:
             child.join()
 
+    def sleep(self):
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            print('\n')
+            print('Graceful shutdown...')
+            self.stop()
+            sys.exit(0)
+
 
 def main():
     parser = OptionParser(usage="usage: pyqs queue_prefix")
@@ -163,9 +180,15 @@ def main():
         help="Worker concurrency"
     )
     options, args = parser.parse_args()
-    _main(args, **options)
+    if hasattr(options, 'concurrency'):
+        concurrency = options.concurrency
+    else:
+        concurrency = options['concurrency']
+    _main(args, concurrency=int(concurrency))
 
 
 def _main(queue_prefixes, concurrency=5):
     manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()
+
+    manager.sleep()
