@@ -43,6 +43,39 @@ def test_worker_fills_internal_queue():
 
 
 @mock_sqs
+def test_worker_fills_internal_queue_only_until_maximum_queue_size():
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    message = Message()
+    body = json.dumps({
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 'Test message',
+        },
+    })
+    message.set_body(body)
+    for i in range(3):
+        queue.write(message)
+
+    internal_queue = Queue(maxsize=2)
+    worker = ReadWorker(queue, internal_queue)
+    worker.read_message()
+
+    # The internal queue should only have two messages on it
+    internal_queue.get(timeout=1)
+    internal_queue.get(timeout=1)
+
+    try:
+        internal_queue.get(timeout=1)
+    except Empty:
+        pass
+    else:
+        raise AssertionError("The internal queue should be empty")
+
+
+@mock_sqs
 def test_worker_fills_internal_queue_from_celery_task():
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
@@ -151,7 +184,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     expected_result = (
         "Task tests.tasks.index_incrementer raised error: with"
         " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
-        ':\n  File "%sPyQS/pyqs/worker.py", line 89, in '
+        ':\n  File "%sPyQS/pyqs/worker.py", line 94, in '
         "process_message\n    task(*args, **kwargs)\n  File "
         '"%sPyQS/tests/tasks.py", line 8, in '
         'index_incrementer\n    raise ValueError("Need to be given basestring, was '

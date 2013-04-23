@@ -6,13 +6,14 @@ import logging
 from multiprocessing import Event, Process, Queue
 from optparse import OptionParser
 import os
-from Queue import Empty
+from Queue import Empty, Full
 import traceback
 
 import boto
 
 from pyqs.utils import decode_message
 
+PREFETCH_MULTIPLIER = 2
 logger = logging.getLogger("pyqs")
 conn = None
 
@@ -53,9 +54,13 @@ class ReadWorker(BaseWorker):
         messages = self.queue.get_messages(10)
         for message in messages:
             message_body = decode_message(message)
-            message.delete()
 
-            self.internal_queue.put(message_body)
+            try:
+                self.internal_queue.put_nowait(message_body)
+            except Full:
+                continue
+            else:
+                message.delete()
 
 
 class ProcessWorker(BaseWorker):
@@ -109,7 +114,7 @@ class ManagerWorker(object):
     def __init__(self, queue_prefixes, worker_concurrency):
         self.queue_prefixes = queue_prefixes
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
-        self.internal_queue = Queue()
+        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER)
         self.reader_children = []
         self.worker_children = []
 
