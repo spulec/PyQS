@@ -9,18 +9,23 @@ PyQS is a simple task-queue for SQS.
 email/tasks.py
 ```python
 @task()
-def send_email():
+def send_email(subject):
     pass
 ```
 
-This will get enqueued to a new 'emailer.tasks.send_email' queue.
+Then later run
+```python
+send_email.delay(subject='Hi there')
+```
+
+This task will get enqueued to a new 'emailer.tasks.send_email' queue.
 
 If you wanted to put it on a particular queue, say 'email', you can do
 
 email/tasks.py
 ```python
 @task(queue='email')
-def send_email():
+def send_email(subject):
     pass
 ```
 

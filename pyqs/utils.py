@@ -16,3 +16,7 @@ def decode_message(message):
 def decode_celery_message(json_task):
     message = base64.decodestring(json_task['body'])
     return pickle.loads(message)
+
+
+def function_to_import_path(function):
+    return "{}.{}".format(function.__module__, function.func_name)

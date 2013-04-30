@@ -186,7 +186,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
         " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
         ':\n  File "%sPyQS/pyqs/worker.py", line 101, in '
         "process_message\n    task(*args, **kwargs)\n  File "
-        '"%sPyQS/tests/tasks.py", line 8, in '
+        '"%sPyQS/tests/tasks.py", line 11, in '
         'index_incrementer\n    raise ValueError("Need to be given basestring, was '
         'given {}".format(message))\nValueError: Need to be given basestring, was '
         "given 23\n" % (base_dir, base_dir)
