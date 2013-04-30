@@ -1,4 +1,4 @@
-# PyQS - Python task-queue for Amazon SQS
+# PyQS - Python task-queues for Amazon SQS
 
 [![Build Status](https://travis-ci.org/spulec/PyQS.png?branch=master)](https://travis-ci.org/spulec/PyQS)
 
