@@ -1,6 +1,7 @@
 import json
 import logging
 from multiprocessing import Queue
+from os.path import abspath, dirname, join, pardir
 from Queue import Empty
 
 import boto
@@ -180,13 +181,13 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
-    base_dir = "/Users/spulec/Development/"
+    base_dir = abspath(join(dirname(__file__), pardir, pardir))
     expected_result = (
         "Task tests.tasks.index_incrementer raised error: with"
         " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
-        ':\n  File "%sPyQS/pyqs/worker.py", line 101, in '
+        ':\n  File "%s/PyQS/pyqs/worker.py", line 101, in '
         "process_message\n    task(*args, **kwargs)\n  File "
-        '"%sPyQS/tests/tasks.py", line 11, in '
+        '"%s/PyQS/tests/tasks.py", line 11, in '
         'index_incrementer\n    raise ValueError("Need to be given basestring, was '
         'given {}".format(message))\nValueError: Need to be given basestring, was '
         "given 23\n" % (base_dir, base_dir)
