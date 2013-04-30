@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/spulec/PyQS.png?branch=master)](https://travis-ci.org/spulec/PyQS)
 
+# WARNING: This library is still under active development and should not be used in production.
+
 # In a nutshell
 
 PyQS is a simple task-queue for SQS.
