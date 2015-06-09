@@ -192,7 +192,8 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
         'given {}".format(message))\nValueError: Need to be given basestring, was '
         "given 23\n" % (base_dir, base_dir)
     )
-    logger.handlers[0].messages['error'].should.equal([expected_result])
+    logger.handlers[0].messages['error'][0].lower().should.equal(expected_result.lower())
+
 
 
 def test_worker_processes_empty_queue():
