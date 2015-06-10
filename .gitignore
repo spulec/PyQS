@@ -2,3 +2,4 @@ pyqs.egg-info/*
 dist/*
 .coverage
 *.pyc
+.build.log
