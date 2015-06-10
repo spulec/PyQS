@@ -18,16 +18,16 @@ install_deps:
 
 	@if [ -z $$SKIP_DEPS ]; then \
 		echo "Installing missing dependencies..."; \
-		[ -e development.txt  ] && pip install -r development.txt; \
+		[ -e development.txt  ] && pip install --quiet -r development.txt; \
 	fi
 
 	@python setup.py develop &> .build.log
 
 run_test:
-	echo "Running \033[0;32mtest suite\033[0m "; \
+	@echo "Running \033[0;32mtest suite\033[0m "; \
 	make prepare && \
 		nosetests --stop --with-coverage --cover-package=$(PACKAGE) \
-			--cover-branches --cover-erase --verbosity=2 -s tests/ ; \
+			--cover-branches --cover-erase --verbosity=2; \
 
 test:
 	@make run_test
