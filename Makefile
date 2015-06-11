@@ -7,6 +7,9 @@ prepare: clean install_deps
 
 setup: prepare
 
+pre_commit: setup
+	@pre-commit run --all-files
+
 install_deps:
 	@if [ -z $$VIRTUAL_ENV ]; then \
 		echo "===================================================="; \
@@ -20,7 +23,7 @@ install_deps:
 		echo "Installing missing dependencies..."; \
 		[ -e development.txt  ] && pip install --quiet -r development.txt; \
 	fi
-
+	@pre-commit install
 	@python setup.py develop &> .build.log
 
 run_test:

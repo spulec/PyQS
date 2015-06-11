@@ -10,6 +10,7 @@ logger = logging.getLogger("pyqs")
 
 conn = None
 
+
 def get_or_create_queue(queue_name):
     global conn
     if conn is None:

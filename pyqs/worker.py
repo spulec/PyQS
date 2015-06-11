@@ -104,19 +104,22 @@ class ProcessWorker(BaseWorker):
             task(*args, **kwargs)
         except Exception:
             logger.error(
-                "Task %s raised error: with args: %s and kwargs: %s: %s",
-                full_task_path,
-                args,
-                kwargs,
-                traceback.format_exc(),
+                "Task {} raised error: with args: {} and kwargs: {}: {}".format(
+                    full_task_path,
+                    args,
+                    kwargs,
+                    traceback.format_exc(),
+                )
             )
         else:
             logger.info(
-                "Processing task %s with args: %s and kwargs: %s",
-                full_task_path,
-                repr(args),
-                repr(kwargs),
+                "Processing task {} with args: {} and kwargs: {}".format(
+                    full_task_path,
+                    repr(args),
+                    repr(kwargs),
+                )
             )
+
 
 class ManagerWorker(object):
 
@@ -223,9 +226,7 @@ Run PyQS workers for the given queues
 
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN"):
-    level = getattr(logging, logging_level)
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=level)
+    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
     manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()
-
     manager.sleep()

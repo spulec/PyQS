@@ -1,1 +1,1 @@
-from .decorator import task
+from .decorator import task  # noqa

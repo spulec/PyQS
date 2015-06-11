@@ -195,7 +195,6 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     logger.handlers[0].messages['error'][0].lower().should.equal(expected_result.lower())
 
 
-
 def test_worker_processes_empty_queue():
     internal_queue = Queue()
 

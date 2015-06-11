@@ -51,4 +51,3 @@ This is based on Python's [fnmatch](http://docs.python.org/2/library/fnmatch.htm
 - 'failure' queue?
 - special logger?
 - sentry integration?
-
