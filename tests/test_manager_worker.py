@@ -69,7 +69,7 @@ def test_main_method(ManagerWorker):
 @patch("pyqs.worker.ArgumentParser")
 @mock_sqs
 def test_real_main_method(ArgumentParser, _main):
-    ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3, queues=["email1"])
+    ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3, queues=["email1"], logging_level="WARN")
     main()
 
-    _main.assert_called_once_with(queue_prefixes=['email1'], concurrency=3)
+    _main.assert_called_once_with(queue_prefixes=['email1'], concurrency=3, logging_level="WARN")

@@ -185,7 +185,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     expected_result = (
         "Task tests.tasks.index_incrementer raised error: with"
         " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
-        ':\n  File "%s/PyQS/pyqs/worker.py", line 105, in '
+        ':\n  File "%s/PyQS/pyqs/worker.py", line 104, in '
         "process_message\n    task(*args, **kwargs)\n  File "
         '"%s/PyQS/tests/tasks.py", line 11, in '
         'index_incrementer\n    raise ValueError("Need to be given basestring, was '

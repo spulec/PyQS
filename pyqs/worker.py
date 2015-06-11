@@ -19,7 +19,6 @@ from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
-logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 logger = logging.getLogger("pyqs")
 conn = None
 
@@ -207,13 +206,25 @@ Run PyQS workers for the given queues
         action="store",
     )
 
+    parser.add_argument(
+        "--loglevel",
+        "--log_level",
+        "--log-level",
+        dest="logging_level",
+        type=str,
+        default="WARN",
+        help='Set logging level. This must be one of the python default logging levels',
+        action="store",
+    )
+
     args = parser.parse_args()
 
-    _main(queue_prefixes=args.queues, concurrency=args.concurrency)
+    _main(queue_prefixes=args.queues, concurrency=args.concurrency, logging_level=args.logging_level)
 
 
-
-def _main(queue_prefixes, concurrency=5):
+def _main(queue_prefixes, concurrency=5, logging_level="WARN"):
+    level = getattr(logging, logging_level)
+    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=level)
     manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()
 
