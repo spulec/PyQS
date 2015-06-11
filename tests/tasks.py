@@ -13,4 +13,4 @@ def index_incrementer(message, extra=None):
 
 @task(queue='email')
 def send_email(subject, message):
-    print "{} {}".format(subject, message)
+    pass
