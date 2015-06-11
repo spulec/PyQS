@@ -1,5 +1,5 @@
 import boto
-from mock import patch
+from mock import patch, Mock
 from moto import mock_sqs
 
 from pyqs.worker import ManagerWorker, main, _main
@@ -66,10 +66,10 @@ def test_main_method(ManagerWorker):
 
 
 @patch("pyqs.worker._main")
-@patch("pyqs.worker.OptionParser")
+@patch("pyqs.worker.ArgumentParser")
 @mock_sqs
-def test_real_main_method(OptionParser, _main):
-    OptionParser.return_value.parse_args.return_value = ({'concurrency': 3}, 'email1')
+def test_real_main_method(ArgumentParser, _main):
+    ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3, queues=["email1"])
     main()
 
-    _main.assert_called_once_with('email1', concurrency=3)
+    _main.assert_called_once_with(queue_prefixes=['email1'], concurrency=3)

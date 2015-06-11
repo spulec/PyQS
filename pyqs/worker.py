@@ -3,21 +3,23 @@
 import fnmatch
 import importlib
 import logging
-from multiprocessing import Event, Process, Queue
-from optparse import OptionParser
 import os
-from Queue import Empty, Full
 import signal
 import sys
 import traceback
 import time
+
+from multiprocessing import Event, Process, Queue
+from argparse import ArgumentParser
+from Queue import Empty, Full
+
 import boto
 
 from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
-logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.WARN)
+logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
 logger = logging.getLogger("pyqs")
 conn = None
 
@@ -183,20 +185,32 @@ class ManagerWorker(object):
 
 
 def main():
-    parser = OptionParser(usage="usage: pyqs queue_prefix")
-    parser.add_option(
+    parser = ArgumentParser(description="""
+Run PyQS workers for the given queues
+""")
+    parser.add_argument(
         "-c",
         "--concurrency",
+        type=int,
         dest="concurrency",
         default=1,
-        help="Worker concurrency"
+        help='Worker concurrency',
+        action="store",
     )
-    options, args = parser.parse_args()
-    if hasattr(options, 'concurrency'):
-        concurrency = options.concurrency
-    else:
-        concurrency = options['concurrency']
-    _main(args, concurrency=int(concurrency))
+
+    parser.add_argument(
+        "queues",
+        metavar="QUEUE_NAME",
+        nargs="+",
+        type=str,
+        help='Queues to process',
+        action="store",
+    )
+
+    args = parser.parse_args()
+
+    _main(queue_prefixes=args.queues, concurrency=args.concurrency)
+
 
 
 def _main(queue_prefixes, concurrency=5):
