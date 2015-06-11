@@ -11,6 +11,6 @@ def index_incrementer(message, extra=None):
         raise ValueError("Need to be given basestring, was given {}".format(message))
 
 
-@task(queue='email')
+@task(queue='foo')
 def send_email(subject, message):
-    pass
+    print "{} {}".format(subject, message)

@@ -8,9 +8,12 @@ from .utils import function_to_import_path
 
 logger = logging.getLogger("pyqs")
 
+conn = None
 
 def get_or_create_queue(queue_name):
-    conn = boto.connect_sqs()
+    global conn
+    if conn is None:
+        conn = boto.connect_sqs()
     queue = conn.get_queue(queue_name)
     if queue:
         return queue

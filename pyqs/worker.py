@@ -10,12 +10,14 @@ from Queue import Empty, Full
 import signal
 import sys
 import traceback
-
+import time
 import boto
 
 from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
+MESSAGE_DOWNLOAD_BATCH_SIZE = 1
+logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.WARN)
 logger = logging.getLogger("pyqs")
 conn = None
 
@@ -55,7 +57,7 @@ class ReadWorker(BaseWorker):
             self.read_message()
 
     def read_message(self):
-        messages = self.queue.get_messages(10)
+        messages = self.queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
         for message in messages:
             message_body = decode_message(message)
 
@@ -115,13 +117,12 @@ class ProcessWorker(BaseWorker):
                 repr(kwargs),
             )
 
-
 class ManagerWorker(object):
 
     def __init__(self, queue_prefixes, worker_concurrency):
-        self.queue_prefixes = queue_prefixes
+        self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
-        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER)
+        self.setup_internal_queue(worker_concurrency)
         self.reader_children = []
         self.worker_children = []
 
@@ -130,6 +131,13 @@ class ManagerWorker(object):
 
         for index in range(worker_concurrency):
             self.worker_children.append(ProcessWorker(self.internal_queue))
+
+    def load_queue_prefixes(self, queue_prefixes):
+        self.queue_prefixes = queue_prefixes
+
+        print "Loading Queues:"
+        for queue_prefix in queue_prefixes:
+            print "[Queue]\t{}".format(queue_prefix)
 
     def get_queues_from_queue_prefixes(self, queue_prefixes):
         all_queues = get_conn().get_all_queues()
@@ -140,7 +148,11 @@ class ManagerWorker(object):
                 queue for queue in all_queues if
                 fnmatch.fnmatch(queue.name, prefix)
             ])
+        print "Found matching SQS Queues: {}".format(matching_queues)
         return matching_queues
+
+    def setup_internal_queue(self, worker_concurrency):
+        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER * MESSAGE_DOWNLOAD_BATCH_SIZE)
 
     def start(self):
         for child in self.reader_children:
@@ -162,7 +174,7 @@ class ManagerWorker(object):
     def sleep(self):
         try:
             while True:
-                pass
+                time.sleep(0.01)
         except KeyboardInterrupt:
             print('\n')
             print('Graceful shutdown...')
