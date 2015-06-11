@@ -16,7 +16,7 @@ import boto
 from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
-MESSAGE_DOWNLOAD_BATCH_SIZE = 1
+MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.WARN)
 logger = logging.getLogger("pyqs")
 conn = None
