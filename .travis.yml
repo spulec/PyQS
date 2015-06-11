@@ -8,4 +8,5 @@ before_script:
   # Deal with issue on Travis builders re: multiprocessing.Queue :(
   - "sudo rm -rf /dev/shm && sudo ln -s /run/shm /dev/shm"
 script:
+  - make pre_commit
   - make test
