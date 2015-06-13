@@ -129,11 +129,15 @@ class ManagerWorker(object):
         self.setup_internal_queue(worker_concurrency)
         self.reader_children = []
         self.worker_children = []
+        self._initialize_reader_children()
+        self._initialize_worker_children(worker_concurrency)
 
+    def _initialize_reader_children(self):
         for queue in self.queues:
             self.reader_children.append(ReadWorker(queue, self.internal_queue))
 
-        for index in range(worker_concurrency):
+    def _initialize_worker_children(self, number):
+        for index in range(number):
             self.worker_children.append(ProcessWorker(self.internal_queue))
 
     def load_queue_prefixes(self, queue_prefixes):
@@ -152,7 +156,7 @@ class ManagerWorker(object):
                 queue for queue in all_queues if
                 fnmatch.fnmatch(queue.name, prefix)
             ])
-        print "Found matching SQS Queues: {}".format(matching_queues)
+        logger.info("Found matching SQS Queues: {}".format(matching_queues))
         return matching_queues
 
     def setup_internal_queue(self, worker_concurrency):
@@ -176,14 +180,47 @@ class ManagerWorker(object):
             child.join()
 
     def sleep(self):
+        counter = 0
         try:
             while True:
+                counter = counter + 1
+                if counter % 1000 == 0:
+                    counter = 0
+                    self.process_counts()
+                    self.replace_workers()
                 time.sleep(0.001)
         except KeyboardInterrupt:
             print('\n')
             print('Graceful shutdown...')
             self.stop()
             sys.exit(0)
+
+    def process_counts(self):
+        reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
+        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
+        logger.info("Reader Processes: {}".format(reader_count))
+        logger.info("Worker Processes: {}".format(worker_count))
+
+    def replace_workers(self):
+        self._replace_reader_children()
+        self._replace_worker_children()
+
+    def _replace_reader_children(self):
+        for index, reader in enumerate(self.reader_children):
+            if not reader.is_alive():
+                queue = reader.queue
+                self.reader_children.pop(index)
+                worker = ReadWorker(queue, self.internal_queue)
+                worker.start()
+                self.reader_children.append(worker)
+
+    def _replace_worker_children(self):
+        for index, worker in enumerate(self.worker_children):
+            if not worker.is_alive():
+                self.worker_children.pop(index)
+                worker = ProcessWorker(self.internal_queue)
+                worker.start()
+                self.worker_children.append(worker)
 
 
 def main():
