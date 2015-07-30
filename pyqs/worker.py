@@ -44,29 +44,33 @@ class BaseWorker(Process):
 
 class ReadWorker(BaseWorker):
 
-    def __init__(self, queue, internal_queue, *args, **kwargs):
+    def __init__(self, sqs_queue, internal_queue, *args, **kwargs):
         super(ReadWorker, self).__init__(*args, **kwargs)
-        self.queue = queue
+        self.sqs_queue = sqs_queue
+        self.visibility_timeout = self.sqs_queue.get_timeout()
         self.internal_queue = internal_queue
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        print "Running ReadWorker: {}, pid: {}".format(self.queue.name, os.getpid())
+        logger.info("Running ReadWorker: {}, pid: {}".format(self.sqs_queue.name, os.getpid()))
         while not self.should_exit.is_set():
             self.read_message()
 
     def read_message(self):
-        messages = self.queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
+        messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
         for message in messages:
             message_body = decode_message(message)
 
             try:
-                self.internal_queue.put_nowait(message_body)
+                self.internal_queue.put(message_body, True, self.visibility_timeout)
             except Full:
+                msg = "Timed out trying to the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
+                logger.warning(msg)
                 continue
             else:
+                logger.debug("Following message successfully added to internal queue, deleting from SQS queue {}: ".format(self.sqs_queue.name, message_body))  # noqa
                 message.delete()
 
 
@@ -80,7 +84,7 @@ class ProcessWorker(BaseWorker):
         # Set the child process to not receive any keyboard interrupts
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        print "Running ProcessWorker, pid: {}".format(os.getpid())
+        logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
         while not self.should_exit.is_set():
             self.process_message()
 
@@ -143,20 +147,19 @@ class ManagerWorker(object):
     def load_queue_prefixes(self, queue_prefixes):
         self.queue_prefixes = queue_prefixes
 
-        print "Loading Queues:"
+        logger.info("Loading Queues:")
         for queue_prefix in queue_prefixes:
-            print "[Queue]\t{}".format(queue_prefix)
+            logger.info("[Queue]\t{}".format(queue_prefix))
 
     def get_queues_from_queue_prefixes(self, queue_prefixes):
         all_queues = get_conn().get_all_queues()
-
         matching_queues = []
         for prefix in queue_prefixes:
             matching_queues.extend([
                 queue for queue in all_queues if
                 fnmatch.fnmatch(queue.name, prefix)
             ])
-        logger.info("Found matching SQS Queues: {}".format(matching_queues))
+        logger.info("Found matching SQS Queues: {}".format([q.name for q in matching_queues]))
         return matching_queues
 
     def setup_internal_queue(self, worker_concurrency):
@@ -190,8 +193,7 @@ class ManagerWorker(object):
                     self.replace_workers()
                 time.sleep(0.001)
         except KeyboardInterrupt:
-            print('\n')
-            print('Graceful shutdown...')
+            logger.info('Graceful shutdown. Sending shutdown signal to children.')
             self.stop()
             sys.exit(0)
 
