@@ -41,6 +41,12 @@ class BaseWorker(Process):
     def shutdown(self):
         self.should_exit.set()
 
+    def parent_is_alive(self):
+        if os.getppid() == 1:
+            logger.info("Parent process has gone away, exiting process {}!".format(os.getpid()))
+            return False
+        return True
+
 
 class ReadWorker(BaseWorker):
 
@@ -55,7 +61,7 @@ class ReadWorker(BaseWorker):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         logger.info("Running ReadWorker: {}, pid: {}".format(self.sqs_queue.name, os.getpid()))
-        while not self.should_exit.is_set():
+        while not self.should_exit.is_set() and self.parent_is_alive():
             self.read_message()
 
     def read_message(self):
@@ -85,7 +91,7 @@ class ProcessWorker(BaseWorker):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
-        while not self.should_exit.is_set():
+        while not self.should_exit.is_set() and self.parent_is_alive():
             self.process_message()
 
     def process_message(self):
