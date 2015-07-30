@@ -2,7 +2,8 @@ import boto
 from mock import patch, Mock
 from moto import mock_sqs
 
-from pyqs.worker import ManagerWorker, main, _main
+from pyqs.main import main, _main
+from pyqs.worker import ManagerWorker
 
 
 @mock_sqs
@@ -56,7 +57,7 @@ def test_manager_start_and_stop():
     manager.worker_children[1].is_alive().should.equal(False)
 
 
-@patch("pyqs.worker.ManagerWorker")
+@patch("pyqs.main.ManagerWorker")
 @mock_sqs
 def test_main_method(ManagerWorker):
     _main(["email1", "email2"], concurrency=2)
@@ -65,8 +66,8 @@ def test_main_method(ManagerWorker):
     ManagerWorker.return_value.start.assert_called_once_with()
 
 
-@patch("pyqs.worker._main")
-@patch("pyqs.worker.ArgumentParser")
+@patch("pyqs.main._main")
+@patch("pyqs.main.ArgumentParser")
 @mock_sqs
 def test_real_main_method(ArgumentParser, _main):
     ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3, queues=["email1"], logging_level="WARN")

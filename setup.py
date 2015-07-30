@@ -11,7 +11,7 @@ setup(
     url='https://github.com/spulec/pyqs',
     entry_points={
         'console_scripts': [
-            'pyqs = pyqs.worker:main',
+            'pyqs = pyqs.main:main',
         ],
     },
     packages=find_packages(),
