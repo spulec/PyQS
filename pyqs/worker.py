@@ -66,9 +66,17 @@ class ReadWorker(BaseWorker):
 
     def read_message(self):
         messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
+        start = time.time()
         for message in messages:
-            message_body = decode_message(message)
+            end = time.time()
+            if int(end - start) >= self.visibility_timeout:
+                # Don't add any more messages since they have re-appeared in the sqs queue
+                # Instead just reset and get fresh messages from the sqs queue
+                msg = "Clearing Local messages since we exceeded their visibility_timeout"
+                logger.warning(msg)
+                break
 
+            message_body = decode_message(message)
             try:
                 self.internal_queue.put(message_body, True, self.visibility_timeout)
             except Full:
