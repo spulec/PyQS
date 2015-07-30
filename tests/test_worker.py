@@ -46,7 +46,7 @@ def test_worker_fills_internal_queue():
 def test_worker_fills_internal_queue_only_until_maximum_queue_size():
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
-    queue.set_timeout(0)  # Set visibility timeout low to improve test speed
+    queue.set_timeout(1)  # Set visibility timeout low to improve test speed
 
     message = Message()
     body = json.dumps({
