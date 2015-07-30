@@ -47,6 +47,7 @@ def test_worker_fills_internal_queue():
 def test_worker_fills_internal_queue_only_until_maximum_queue_size():
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
+    queue.set_timeout(0)  # Set visibility timeout low to improve test speed
 
     message = Message()
     body = json.dumps({
@@ -185,7 +186,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     expected_result = (
         "Task tests.tasks.index_incrementer raised error: with"
         " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
-        ':\n  File "%s/PyQS/pyqs/worker.py", line 104, in '
+        ':\n  File "%s/PyQS/pyqs/worker.py", line 108, in '
         "process_message\n    task(*args, **kwargs)\n  File "
         '"%s/PyQS/tests/tasks.py", line 11, in '
         'index_incrementer\n    raise ValueError("Need to be given basestring, was '
