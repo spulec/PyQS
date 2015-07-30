@@ -96,7 +96,7 @@ class ProcessWorker(BaseWorker):
 
     def process_message(self):
         try:
-            next_message = self.internal_queue.get(timeout=2)
+            next_message = self.internal_queue.get(timeout=0.5)
         except Empty:
             return
 
