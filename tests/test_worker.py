@@ -1,7 +1,6 @@
 import json
 import logging
 from multiprocessing import Queue
-from os.path import abspath, dirname, join, pardir
 from Queue import Empty
 
 import boto
@@ -182,18 +181,10 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
-    base_dir = abspath(join(dirname(__file__), pardir, pardir))
-    expected_result = (
-        "Task tests.tasks.index_incrementer raised error: with"
-        " args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"
-        ':\n  File "%s/PyQS/pyqs/worker.py", line 108, in '
-        "process_message\n    task(*args, **kwargs)\n  File "
-        '"%s/PyQS/tests/tasks.py", line 11, in '
-        'index_incrementer\n    raise ValueError("Need to be given basestring, was '
-        'given {}".format(message))\nValueError: Need to be given basestring, was '
-        "given 23\n" % (base_dir, base_dir)
-    )
-    logger.handlers[0].messages['error'][0].lower().should.equal(expected_result.lower())
+    msg1 = "Task tests.tasks.index_incrementer raised error: with args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"  # noqa
+    logger.handlers[0].messages['error'][0].lower().should.contain(msg1.lower())
+    msg2 = 'raise ValueError("Need to be given basestring, was given {}".format(message))\nValueError: Need to be given basestring, was given 23'  # noqa
+    logger.handlers[0].messages['error'][0].lower().should.contain(msg2.lower())
 
 
 def test_worker_processes_empty_queue():
