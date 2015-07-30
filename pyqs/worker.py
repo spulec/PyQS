@@ -80,11 +80,11 @@ class ReadWorker(BaseWorker):
             try:
                 self.internal_queue.put(message_body, True, self.visibility_timeout)
             except Full:
-                msg = "Timed out trying to the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
+                msg = "Timed out trying to add the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
                 logger.warning(msg)
                 continue
             else:
-                logger.debug("Following message successfully added to internal queue, deleting from SQS queue {}: ".format(self.sqs_queue.name, message_body))  # noqa
+                logger.debug("Message successfully added to internal queue, deleting from SQS queue {} with body: ".format(self.sqs_queue.name, message_body))  # noqa
                 message.delete()
 
 
@@ -130,7 +130,7 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
-            logger.info(
+            logger.debug(
                 "Processing task {} with args: {} and kwargs: {}".format(
                     full_task_path,
                     repr(args),
