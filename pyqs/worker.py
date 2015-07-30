@@ -39,6 +39,7 @@ class BaseWorker(Process):
         self.should_exit = Event()
 
     def shutdown(self):
+        logger.info("Triggering shutdown on {}!".format(os.getpid()))
         self.should_exit.set()
 
     def parent_is_alive(self):
