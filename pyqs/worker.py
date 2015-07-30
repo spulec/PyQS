@@ -39,7 +39,6 @@ class BaseWorker(Process):
         self.should_exit = Event()
 
     def shutdown(self):
-        logger.info("Triggering shutdown on {}!".format(os.getpid()))
         self.should_exit.set()
 
     def parent_is_alive(self):
@@ -208,7 +207,7 @@ class ManagerWorker(object):
                     self.replace_workers()
                 time.sleep(0.001)
         except KeyboardInterrupt:
-            logger.info('Graceful shutdown. Sending shutdown signal to children.')
+            logger.debug('Graceful shutdown. Sending shutdown signal to children.')
             self.stop()
             sys.exit(0)
 

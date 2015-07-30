@@ -6,6 +6,9 @@ import logging
 from argparse import ArgumentParser
 
 from .worker import ManagerWorker
+from . import __version__
+
+logger = logging.getLogger("pyqs")
 
 
 def main():
@@ -49,6 +52,7 @@ Run PyQS workers for the given queues
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN"):
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
+    logger.info("Starting PyQS version {}".format(__version__))
     manager = ManagerWorker(queue_prefixes, concurrency)
     manager.start()
     manager.sleep()
