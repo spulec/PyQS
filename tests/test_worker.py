@@ -9,6 +9,7 @@ from moto import mock_sqs
 
 from pyqs.worker import ReadWorker, ProcessWorker
 from tests.tasks import task_results
+from tests.utils import MockLoggingHandler
 
 
 @mock_sqs
@@ -101,6 +102,35 @@ def test_worker_fills_internal_queue_from_celery_task():
     })
 
 
+@mock_sqs
+def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
+    # Setup logging
+    logger = logging.getLogger("pyqs")
+    logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+    queue.set_timeout(1)
+
+    # Add MEssages
+    message = Message()
+    body = '{"body": "KGRwMApTJ3Rhc2snCnAxClMndGVzdHMudGFza3MuaW5kZXhfaW5jcmVtZW50ZXInCnAyCnNTJ2Fy\\nZ3MnCnAzCihscDQKc1Mna3dhcmdzJwpwNQooZHA2ClMnbWVzc2FnZScKcDcKUydUZXN0IG1lc3Nh\\nZ2UyJwpwOApzcy4=\\n", "some stuff": "asdfasf"}'
+    message.set_body(body)
+    queue.write(message)
+    queue.write(message)
+    queue.write(message)
+
+    # Run Reader
+    internal_queue = Queue(maxsize=1)
+    worker = ReadWorker(queue, internal_queue)
+    worker.read_message()
+
+    # Check log messages
+    logger.handlers[0].messages['warning'][0].should.contain("Timed out trying to add the following message to the internal queue")
+    logger.handlers[0].messages['warning'][1].should.contain("Clearing Local messages since we exceeded their visibility_timeout")
+
+
 def test_worker_processes_tasks_from_internal_queue():
     message = {
         'task': 'tests.tasks.index_incrementer',
@@ -125,28 +155,9 @@ def test_worker_processes_tasks_from_internal_queue():
         raise AssertionError("The internal queue should be empty")
 
 
-class MockLoggingHandler(logging.Handler):
-    """Mock logging handler to check for expected logs."""
-
-    def __init__(self, *args, **kwargs):
-        self.reset()
-        logging.Handler.__init__(self, *args, **kwargs)
-
-    def emit(self, record):
-        self.messages[record.levelname.lower()].append(record.getMessage())
-
-    def reset(self):
-        self.messages = {
-            'debug': [],
-            'info': [],
-            'warning': [],
-            'error': [],
-            'critical': [],
-        }
-
-
 def test_worker_processes_tasks_and_logs_correctly():
     logger = logging.getLogger("pyqs")
+    del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
     message = {
         'task': 'tests.tasks.index_incrementer',
