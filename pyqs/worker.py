@@ -225,7 +225,7 @@ class ManagerWorker(object):
         for index, reader in enumerate(self.reader_children):
             if not reader.is_alive():
                 logger.info("Reader Process {} is no longer responding, spawning a new reader.".format(reader.pid))
-                queue = reader.queue
+                queue = reader.sqs_queue
                 self.reader_children.pop(index)
                 worker = ReadWorker(queue, self.internal_queue)
                 worker.start()

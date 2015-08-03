@@ -1,4 +1,6 @@
+import time
 import boto
+
 from mock import patch, Mock
 from moto import mock_sqs
 
@@ -74,3 +76,74 @@ def test_real_main_method(ArgumentParser, _main):
     main()
 
     _main.assert_called_once_with(queue_prefixes=['email1'], concurrency=3, logging_level="WARN")
+
+
+@mock_sqs
+def test_master_spawns_worker_processes():
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    conn.create_queue("tester")
+
+    # Setup Manager
+    manager = ManagerWorker(["tester"], 1)
+    manager.start()
+
+    # Check Workers
+    len(manager.reader_children).should.equal(1)
+    len(manager.worker_children).should.equal(1)
+
+    manager.reader_children[0].is_alive().should.be.true
+    manager.worker_children[0].is_alive().should.be.true
+
+    # Cleanup
+    manager.stop()
+
+
+@mock_sqs
+def test_master_replaces_reader_processes():
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    conn.create_queue("tester")
+
+    # Setup Manager
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager.start()
+
+    # Get Reader PID
+    pid = manager.reader_children[0].pid
+
+    # Kill Reader and wait to replace
+    manager.reader_children[0].shutdown()
+    time.sleep(0.1)
+    manager.replace_workers()
+
+    # Check Replacement
+    manager.reader_children[0].pid.shouldnt.equal(pid)
+
+    # Cleanup
+    manager.stop()
+
+
+@mock_sqs
+def test_master_replaces_worker_processes():
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    conn.create_queue("tester")
+
+    # Setup Manager
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager.start()
+
+    # Get Worker PID
+    pid = manager.worker_children[0].pid
+
+    # Kill Worker and wait to replace
+    manager.worker_children[0].shutdown()
+    time.sleep(0.1)
+    manager.replace_workers()
+
+    # Check Replacement
+    manager.worker_children[0].pid.shouldnt.equal(pid)
+
+    # Cleanup
+    manager.stop()
