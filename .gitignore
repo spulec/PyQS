@@ -1,6 +1,8 @@
+.DS_Store
 dist/*
 .coverage
 *.pyc
 .build.log
 *.egg-info/*
 build/*
+htmlcov/*
