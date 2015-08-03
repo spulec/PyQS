@@ -90,4 +90,4 @@ When we read a batch of messages from SQS we attempt to add them to our internal
 
 **Task Importing:**
 
-Currently there is not advanced logic in place to find the location of modules to import tasks for processing.  PyQS will try using `importlib` to get the module, and then find the task inside the module.  Currently we wrap our usage of PyQS inside a Django admin command, which simplifies task importing.  We call the [**_main**](https://github.com/spulec/PyQS/blob/master/pyqs/main.py#L53) method directly, skipping **main** since it only performs argument parsing.
+Currently there is not advanced logic in place to find the location of modules to import tasks for processing.  PyQS will try using `importlib` to get the module, and then find the task inside the module.  Currently we wrap our usage of PyQS inside a Django admin command, which simplifies task importing.  We call the [**_main()**](https://github.com/spulec/PyQS/blob/master/pyqs/main.py#L53) method directly, skipping **main()** since it only performs argument parsing.
