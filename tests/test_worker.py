@@ -6,8 +6,8 @@ from Queue import Empty
 import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
-
-from pyqs.worker import ReadWorker, ProcessWorker
+from mock import patch
+from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
 
@@ -203,3 +203,19 @@ def test_worker_processes_empty_queue():
 
     worker = ProcessWorker(internal_queue)
     worker.process_message()
+
+
+@patch("pyqs.worker.os")
+def test_parent_process_death(os):
+    os.getppid.return_value = 1
+
+    worker = BaseWorker()
+    worker.parent_is_alive().should.be.false
+
+
+@patch("pyqs.worker.os")
+def test_parent_process_alive(os):
+    os.getppid.return_value = 1234
+
+    worker = BaseWorker()
+    worker.parent_is_alive().should.be.true
