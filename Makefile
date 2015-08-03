@@ -28,11 +28,10 @@ install_deps:
 
 run_test:
 	@echo "Running \033[0;32mtest suite\033[0m "; \
-	make prepare && \
-		nosetests --stop --with-coverage --cover-package=$(PACKAGE) \
-			--cover-branches --cover-erase --verbosity=2; \
+	nosetests --stop --with-coverage --cover-package=$(PACKAGE) \
+		--cover-branches --cover-erase --verbosity=2; \
 
-test:
+test: prepare
 	@make run_test
 
 clean:
