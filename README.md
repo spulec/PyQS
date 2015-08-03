@@ -1,12 +1,31 @@
-# PyQS - Python task-queues for Amazon SQS
+## PyQS - Python task-queues for Amazon SQS [![Build Status](https://travis-ci.org/spulec/PyQS.svg?branch=master)](https://travis-ci.org/spulec/PyQS)
 
-[![Build Status](https://travis-ci.org/spulec/PyQS.png?branch=master)](https://travis-ci.org/spulec/PyQS)
+**WARNING: This library is still in beta. It can do anything up to and including eating your laundry.**
 
-# WARNING: This library is still under active development and should not be used in production.
+PyQS is a simple task manager for SQS.  It's goal is to provide a simple and reliable celery-compatible interface to working with SQS.
 
-# In a nutshell
 
-PyQS is a simple task-queue for SQS.
+### Installation
+
+**PyQS** is available from [PyPI](https://pypi.python.org/) and can be installed in all the usual ways.  To install via *CLI*:
+
+```
+pip install pyqs
+```
+
+Or just add it to your `requirements.txt`.
+
+### Usage
+
+#### Creating tasks
+
+```python
+from pyqs import task
+
+@task(queue='email')
+def send_email(subject, message):
+    pass
+```
 
 email/tasks.py
 ```python
