@@ -1,4 +1,4 @@
 from .decorator import task  # noqa
 
 __title__ = 'pyqs'
-__version__ = '0.0.2'
+__version__ = '0.0.3'
