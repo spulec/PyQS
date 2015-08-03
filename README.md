@@ -16,7 +16,7 @@ Or just add it to your `requirements.txt`.
 
 ### Usage
 
-PyQS was created to replace celery inside of our infrastructure.  To achieve this goal we wanted to make sure we were compatible with the basic Celery APIs.  To this end, you can easily start trying out PyQS in your Celery-based system.  PyQS can read messages that Celery has written to SQS. It will read `pickle` and `json` serialized SQS messages (Although we recommend JSON).  
+PyQS uses some very simple semantics to create and read tasks.  Most of this comes from SQS having a very simple API.
 
 #### Creating Tasks
 
@@ -64,8 +64,28 @@ We can also read from multiple different queues with one call by delimiting with
 $ pyqs send_email,read_email,write_email
 ```
 
+If you want to run more workers to process tasks, you can up the concurrency.  This will spawn additional processes to work through messages.
 
+```bash
+$ pyqs send_email --concurrency 10
+```
 
 #### Compatability
 
+** Celery:**
+
+PyQS was created to replace celery inside of our infrastructure.  To achieve this goal we wanted to make sure we were compatible with the basic Celery APIs.  To this end, you can easily start trying out PyQS in your Celery-based system.  PyQS can read messages that Celery has written to SQS. It will read `pickle` and `json` serialized SQS messages (Although we recommend JSON).  
+
+** Operating Systems:**
+
 UNIX.  Due to the use of the `os.getppid` system call.  This feature can probably be worked around if anyone actually wants windows support.
+
+#### Caveats
+
+** Durability:**
+Right now, once we have pulled down a message from SQS and successfully added it to our internal queue, we delete it from SQS.  This means it is possible to lose messages that have been added to the internal queue but were not processed before shutdown / crashing.
+
+When we read a batch of messages from SQS we attempt to add them to our internal queue until we exceed the visibility timeout of the queue.  Once this is exceeded, we discard the messages and grab a new batch.  The goal is to reduce double processing.  However, this system does not provide transactions and there are cases where it is possible to process a message who's visibility timeout has been exceeded.  It is up to you to make sure that you can handle this edge case.
+
+**Task Importing:**
+Currently there is not advanced logic in place to find the location of modules to import tasks for processing.  PyQS will try using `importlib` to get the module, and then find the task inside the module.  Currently we wrap our usage of PyQS inside a Django admin command, which simplifies task importing.
