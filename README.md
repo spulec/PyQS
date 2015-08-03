@@ -46,13 +46,6 @@ $ pyqs email.*
 
 This is based on Python's [fnmatch](http://docs.python.org/2/library/fnmatch.html).
 
-
-## Exception Handling
-- 'failure' queue?
-- special logger?
-- sentry integration?
-
-
 #### Compatability
 
 UNIX.  Due to the use of the `os.getppid` system call.  This feature can probably be worked around if anyone actually wants windows support.
