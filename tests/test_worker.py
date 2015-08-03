@@ -6,7 +6,7 @@ from Queue import Empty
 import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
-from mock import patch
+from mock import patch, Mock
 from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
@@ -219,3 +219,106 @@ def test_parent_process_alive(os):
 
     worker = BaseWorker()
     worker.parent_is_alive().should.be.true
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
+def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Setup PPID
+    os.getppid.return_value = 1234
+
+    # Setup dummy read_message
+    def read_message():
+        raise Exception("Called")
+
+    # When I have a parent process, and shutdown is not set
+    worker = ReadWorker(queue, "foo")
+    worker.read_message = read_message
+
+    # Then read_message() is reached
+    worker.run.when.called_with().should.throw(Exception, "Called")
+
+
+@patch("pyqs.worker.os")
+def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
+    # Setup PPID
+    os.getppid.return_value = 1234
+
+    # Setup dummy read_message
+    def process_message():
+        raise Exception("Called")
+
+    # When I have a parent process, and shutdown is not set
+    worker = ProcessWorker("foo")
+    worker.process_message = process_message
+
+    # Then process_message() is reached
+    worker.run.when.called_with().should.throw(Exception, "Called")
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
+def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Setup PPID
+    os.getppid.return_value = 1
+
+    # When I have no parent process, and shutdown is not set
+    worker = ReadWorker(queue, "foo")
+    worker.read_message = Mock()
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+
+@patch("pyqs.worker.os")
+def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
+    # Setup PPID
+    os.getppid.return_value = 1
+
+    # When I have no parent process, and shutdown is not set
+    worker = ProcessWorker("foo")
+    worker.process_message = Mock()
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
+def test_read_worker_with_parent_process_alive_and_should_exit(os):
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Setup PPID
+    os.getppid.return_value = 1234
+
+    # When I have a parent process, and shutdown is set
+    worker = ReadWorker(queue, "foo")
+    worker.read_message = Mock()
+    worker.shutdown()
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+
+@patch("pyqs.worker.os")
+def test_process_worker_with_parent_process_alive_and_should_exit(os):
+    # Setup PPID
+    os.getppid.return_value = 1234
+
+    # When I have a parent process, and shutdown is set
+    worker = ProcessWorker("foo")
+    worker.process_message = Mock()
+    worker.shutdown()
+
+    # Then I return from run()
+    worker.run().should.be.none
