@@ -8,8 +8,8 @@ PyQS is a simple task manager for SQS.  It's goal is to provide a simple and rel
 
 **PyQS** is available from [PyPI](https://pypi.python.org/) and can be installed in all the usual ways.  To install via *CLI*:
 
-```
-pip install pyqs
+```bash
+$ pip install pyqs
 ```
 
 Or just add it to your `requirements.txt`.
