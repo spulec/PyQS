@@ -83,9 +83,11 @@ UNIX.  Due to the use of the `os.getppid` system call.  This feature can probabl
 #### Caveats
 
 **Durability:**
+
 Right now, once we have pulled down a message from SQS and successfully added it to our internal queue, we delete it from SQS.  This means it is possible to lose messages that have been added to the internal queue but were not processed before shutdown / crashing.
 
 When we read a batch of messages from SQS we attempt to add them to our internal queue until we exceed the visibility timeout of the queue.  Once this is exceeded, we discard the messages and grab a new batch.  The goal is to reduce double processing.  However, this system does not provide transactions and there are cases where it is possible to process a message who's visibility timeout has been exceeded.  It is up to you to make sure that you can handle this edge case.
 
 **Task Importing:**
+
 Currently there is not advanced logic in place to find the location of modules to import tasks for processing.  PyQS will try using `importlib` to get the module, and then find the task inside the module.  Currently we wrap our usage of PyQS inside a Django admin command, which simplifies task importing.
