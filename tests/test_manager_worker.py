@@ -1,11 +1,13 @@
 import time
 import boto
+import logging
 
 from mock import patch, Mock
 from moto import mock_sqs
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker
+from tests.utils import MockLoggingHandler
 
 
 @mock_sqs
@@ -122,6 +124,34 @@ def test_master_replaces_reader_processes():
 
     # Cleanup
     manager.stop()
+
+
+@mock_sqs
+def test_master_counts_processes():
+    # Setup Logging
+    logger = logging.getLogger("pyqs")
+    del logger.handlers[:]
+    logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    conn.create_queue("tester")
+
+    # Setup Manager
+    manager = ManagerWorker(["tester"], 2)
+    manager.start()
+
+    # Check Workers
+    manager.process_counts()
+
+    # Cleanup
+    manager.stop()
+
+    # Check messages
+    msg1 = "Reader Processes: 1"
+    logger.handlers[0].messages['info'][-2].lower().should.contain(msg1.lower())
+    msg2 = "Worker Processes: 2"
+    logger.handlers[0].messages['info'][-1].lower().should.contain(msg2.lower())
 
 
 @mock_sqs
