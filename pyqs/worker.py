@@ -136,8 +136,8 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
-            logger.info(
-                "Processing task {} with args: {} and kwargs: {}".format(
+            logger.exception(
+                "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
                     repr(args),
                     repr(kwargs),
