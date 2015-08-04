@@ -7,6 +7,7 @@ sudo: false
 
 install:
   - make setup
+  - pip install coveralls
 
 cache:
   directories:
