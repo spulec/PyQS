@@ -8,7 +8,7 @@ from mock import patch, Mock, MagicMock
 from moto import mock_sqs
 
 from pyqs.main import main, _main
-from pyqs.worker import ManagerWorker
+from pyqs.worker import ManagerWorker, _get_region
 from tests.utils import MockLoggingHandler
 
 
@@ -216,3 +216,24 @@ def test_master_handles_signals(sys):
 
     # Then we exit
     sys.exit.assert_called_once_with(0)
+
+
+def test_region_from_string_that_exists():
+    region_name = 'us-east-1'
+
+    region = _get_region(region_name)
+    region.shouldnt.be.none
+
+
+def test_region_from_string_that_does_not_exist():
+    region_name = 'foobar'
+
+    region = _get_region(region_name)
+    region.should.be.none
+
+
+def test_region_from_string_that_is_none():
+    region_name = None
+
+    region = _get_region(region_name)
+    region.should.be.none
