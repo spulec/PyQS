@@ -172,12 +172,13 @@ def test_worker_processes_tasks_and_logs_correctly():
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
-    expected_result = "Processing task tests.tasks.index_incrementer with args: [] and kwargs: {'message': 'Test message'}"
-    logger.handlers[0].messages['info'].should.equal([expected_result])
+    expected_result = "Processed task tests.tasks.index_incrementer with args: [] and kwargs: {'message': 'Test message'}"
+    logger.handlers[0].messages['error'].should.equal([expected_result])
 
 
 def test_worker_processes_tasks_and_logs_warning_correctly():
     logger = logging.getLogger("pyqs")
+    del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
     message = {
         'task': 'tests.tasks.index_incrementer',
