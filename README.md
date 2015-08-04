@@ -1,4 +1,4 @@
-## PyQS - Python task-queues for Amazon SQS [![Build Status](https://travis-ci.org/spulec/PyQS.svg?branch=master)](https://travis-ci.org/spulec/PyQS)
+## PyQS - Python task-queues for Amazon SQS [![Build Status](https://travis-ci.org/spulec/PyQS.svg?branch=master)](https://travis-ci.org/spulec/PyQS) [![Coverage Status](https://coveralls.io/repos/spulec/PyQS/badge.svg?branch=master&service=github)](https://coveralls.io/github/spulec/PyQS?branch=master)
 
 **WARNING: This library is still in beta. It can do anything up to and including eating your laundry.**
 
