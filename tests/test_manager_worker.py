@@ -161,9 +161,9 @@ def test_master_counts_processes():
 
     # Check messages
     msg1 = "Reader Processes: 1"
-    logger.handlers[0].messages['info'][-2].lower().should.contain(msg1.lower())
+    logger.handlers[0].messages['debug'][-2].lower().should.contain(msg1.lower())
     msg2 = "Worker Processes: 2"
-    logger.handlers[0].messages['info'][-1].lower().should.contain(msg2.lower())
+    logger.handlers[0].messages['debug'][-1].lower().should.contain(msg2.lower())
 
 
 @mock_sqs

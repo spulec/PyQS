@@ -72,6 +72,7 @@ class ReadWorker(BaseWorker):
 
     def read_message(self):
         messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
+        logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.sqs_queue.name))  # noqa
         start = time.time()
         for message in messages:
             end = time.time()
@@ -236,8 +237,8 @@ class ManagerWorker(object):
     def process_counts(self):
         reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
         worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
-        logger.info("Reader Processes: {}".format(reader_count))
-        logger.info("Worker Processes: {}".format(worker_count))
+        logger.debug("Reader Processes: {}".format(reader_count))
+        logger.debug("Worker Processes: {}".format(worker_count))
 
     def replace_workers(self):
         self._replace_reader_children()

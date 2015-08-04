@@ -173,7 +173,7 @@ def test_worker_processes_tasks_and_logs_correctly():
     worker.process_message()
 
     expected_result = "Processed task tests.tasks.index_incrementer with args: [] and kwargs: {'message': 'Test message'}"
-    logger.handlers[0].messages['error'].should.equal([expected_result])
+    logger.handlers[0].messages['info'].should.equal([expected_result])
 
 
 def test_worker_processes_tasks_and_logs_warning_correctly():
