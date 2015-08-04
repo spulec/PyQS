@@ -127,7 +127,7 @@ class ProcessWorker(BaseWorker):
         try:
             task(*args, **kwargs)
         except Exception:
-            logger.error(
+            logger.exception(
                 "Task {} raised error: with args: {} and kwargs: {}: {}".format(
                     full_task_path,
                     args,
@@ -136,7 +136,7 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
-            logger.exception(
+            logger.info(
                 "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
                     repr(args),
