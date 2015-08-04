@@ -31,7 +31,7 @@ def send_email(subject, message):
     
 send_email.delay(subject='Hi there')
 ```
-**NOTE:** This assumes that you have your AWS keys in the appropriate environment variables, or are using IAM roles. PyQS doesn't do anything to special to talk to AWS, it only creates the appropriate `boto` connection.
+**NOTE:** This assumes that you have your AWS keys in the appropriate environment variables, or are using IAM roles. PyQS doesn't do anything too special to talk to AWS, it only creates the appropriate `boto` connection.
 
 If you don't pass a queue, PyQS will use the function path as the queue name. For example the following function lives in `email/tasks.py`.
 
