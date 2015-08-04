@@ -158,6 +158,12 @@ class ManagerWorker(object):
         self.worker_children = []
         self._initialize_reader_children()
         self._initialize_worker_children(worker_concurrency)
+        self._running = True
+        self._register_signals()
+
+    def _register_signals(self):
+        for SIG in [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT, signal.SIGHUP]:
+            self.register_shutdown_signal(SIG)
 
     def _initialize_reader_children(self):
         for queue in self.queues:
@@ -207,18 +213,25 @@ class ManagerWorker(object):
 
     def sleep(self):
         counter = 0
-        try:
-            while True:
-                counter = counter + 1
-                if counter % 1000 == 0:
-                    counter = 0
-                    self.process_counts()
-                    self.replace_workers()
-                time.sleep(0.001)
-        except KeyboardInterrupt:
-            logger.debug('Graceful shutdown. Sending shutdown signal to children.')
-            self.stop()
-            sys.exit(0)
+        while self._running:
+            counter = counter + 1
+            if counter % 1000 == 0:
+                counter = 0
+                self.process_counts()
+                self.replace_workers()
+            time.sleep(0.001)
+        self._exit()
+
+    def register_shutdown_signal(self, SIG):
+        signal.signal(SIG, self._graceful_shutdown)
+
+    def _graceful_shutdown(self, signum, frame):
+        self._running = False
+
+    def _exit(self):
+        logger.debug('Graceful shutdown. Sending shutdown signal to children.')
+        self.stop()
+        sys.exit(0)
 
     def process_counts(self):
         reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))

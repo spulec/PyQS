@@ -1,8 +1,10 @@
+import os
+import signal
 import time
 import boto
 import logging
 
-from mock import patch, Mock
+from mock import patch, Mock, MagicMock
 from moto import mock_sqs
 
 from pyqs.main import main, _main
@@ -187,3 +189,30 @@ def test_master_replaces_worker_processes():
 
     # Cleanup
     manager.stop()
+
+
+@mock_sqs
+@patch("pyqs.worker.sys")
+def test_master_handles_signals(sys):
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    conn.create_queue("tester")
+
+    # Mock out sys.exit
+    sys.exit = Mock()
+
+    # Have our inner method send our signal
+    def process_counts():
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    # Setup Manager
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager.process_counts = process_counts
+    manager._graceful_shutdown = MagicMock()
+
+    # When we start and trigger a signal
+    manager.start()
+    manager.sleep()
+
+    # Then we exit
+    sys.exit.assert_called_once_with(0)
