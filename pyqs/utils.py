@@ -15,6 +15,10 @@ def decode_message(message):
 
 def decode_celery_message(json_task):
     message = base64.decodestring(json_task['body'])
+    try:
+        return json.loads(message)
+    except ValueError:
+        pass
     return pickle.loads(message)
 
 
