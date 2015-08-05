@@ -1,3 +1,7 @@
+## 0.0.7
+
+* Added capability to read JSON encoded celery messages.
+
 ## 0.0.6
 
 * Switched shutdown logging to INFO
