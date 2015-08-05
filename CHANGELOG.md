@@ -1,3 +1,8 @@
+## 0.0.6
+
+* Switched shutdown logging to INFO
+* Added brief sleep to message retrieval loop so that we don't look like we are using a ton of CPU spinning.
+
 ## 0.0.5
 
 * Switching task failure logging to ERROR (actually this time)
