@@ -45,6 +45,7 @@ class BaseWorker(Process):
         self.should_exit = Event()
 
     def shutdown(self):
+        logger.info("Received shutdown signal, shutting down PID {}!".format(os.getpid()))
         self.should_exit.set()
 
     def parent_is_alive(self):
@@ -230,7 +231,7 @@ class ManagerWorker(object):
         self._running = False
 
     def _exit(self):
-        logger.debug('Graceful shutdown. Sending shutdown signal to children.')
+        logger.info('Graceful shutdown. Sending shutdown signal to children.')
         self.stop()
         sys.exit(0)
 
