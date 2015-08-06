@@ -13,7 +13,7 @@ import time
 from multiprocessing import Event, Process, Queue
 from Queue import Empty, Full
 
-import boto
+import boto3
 
 from pyqs.utils import decode_message
 
@@ -21,23 +21,10 @@ PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
-conn = None
 
 
-def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    global conn
-    if conn:
-        return conn
-    else:
-        conn = boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
-        return conn
-
-
-def _get_region(region_name):
-    if region_name is not None:
-        for region in boto.sqs.regions():
-            if region.name == region_name:
-                return region
+def get_conn(**kwargs):
+    return boto3.client('sqs', **kwargs)
 
 
 class BaseWorker(Process):
@@ -150,10 +137,12 @@ class ProcessWorker(BaseWorker):
 
 class ManagerWorker(object):
 
-    def __init__(self, queue_prefixes, worker_concurrency, region='us-east-1', access_key_id=None, secret_access_key=None):
-        self.region = region
-        self.access_key_id = access_key_id
-        self.secret_access_key = secret_access_key
+    def __init__(self, queue_prefixes, worker_concurrency, region_name='us-east-1', aws_access_key_id=None, aws_secret_access_key=None):
+        self.connection_args = {
+            "region_name": region_name,
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+        }
         self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -184,7 +173,7 @@ class ManagerWorker(object):
             logger.info("[Queue]\t{}".format(queue_prefix))
 
     def get_queues_from_queue_prefixes(self, queue_prefixes):
-        all_queues = get_conn(region=self.region, access_key_id=self.access_key_id, secret_access_key=self.secret_access_key).get_all_queues()
+        all_queues = get_conn(**self.connection_args).get_all_queues()
         matching_queues = []
         for prefix in queue_prefixes:
             matching_queues.extend([
