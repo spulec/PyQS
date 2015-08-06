@@ -1,3 +1,7 @@
+## 0.0.10
+
+* Give each process worker its own boto connection to avoid multiprocess race conditions during message deletion
+
 ## 0.0.9
 
 * Change long polling interval to a valid value, 0<=LPI<=20
