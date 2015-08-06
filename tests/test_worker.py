@@ -8,6 +8,7 @@ from boto.sqs.message import Message
 from moto import mock_sqs
 from mock import patch, Mock
 from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker
+from pyqs.utils import decode_message
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
 
@@ -33,8 +34,8 @@ def test_worker_fills_internal_queue():
     worker.read_message()
 
     found_message = internal_queue.get(timeout=1)
-
-    found_message.should.equal({
+    found_message_body = decode_message(found_message)
+    found_message_body.should.equal({
         'task': 'tests.tasks.index_incrementer',
         'args': [],
         'kwargs': {
@@ -92,8 +93,8 @@ def test_worker_fills_internal_queue_from_celery_task():
     worker.read_message()
 
     found_message = internal_queue.get(timeout=1)
-
-    found_message.should.equal({
+    found_message_body = decode_message(found_message)
+    found_message_body.should.equal({
         'task': 'tests.tasks.index_incrementer',
         'args': [],
         'kwargs': {
@@ -132,21 +133,29 @@ def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
 
 
 def test_worker_processes_tasks_from_internal_queue():
-    message = {
+    # Build the SQS message
+    message_body = {
         'task': 'tests.tasks.index_incrementer',
         'args': [],
         'kwargs': {
             'message': 'Test message',
         },
     }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to queue
     internal_queue = Queue()
     internal_queue.put(message)
 
+    # Process message
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
     task_results.should.equal(['Test message'])
 
+    # We expect the queue to be empty now
     try:
         internal_queue.get(timeout=1)
     except Empty:
@@ -156,44 +165,64 @@ def test_worker_processes_tasks_from_internal_queue():
 
 
 def test_worker_processes_tasks_and_logs_correctly():
+    # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
-    message = {
+
+    # Build the SQS message
+    message_body = {
         'task': 'tests.tasks.index_incrementer',
         'args': [],
         'kwargs': {
             'message': 'Test message',
         },
     }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to internal queue
     internal_queue = Queue()
     internal_queue.put(message)
 
+    # Process message
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
-    expected_result = "Processed task tests.tasks.index_incrementer with args: [] and kwargs: {'message': 'Test message'}"
+    # Check output
+    expected_result = u"Processed task tests.tasks.index_incrementer with args: [] and kwargs: {u'message': u'Test message'}"
     logger.handlers[0].messages['info'].should.equal([expected_result])
 
 
 def test_worker_processes_tasks_and_logs_warning_correctly():
+    # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
-    message = {
+
+    # Build the SQS Message
+    message_body = {
         'task': 'tests.tasks.index_incrementer',
         'args': [],
         'kwargs': {
             'message': 23,
         },
     }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to internal queue
     internal_queue = Queue()
     internal_queue.put(message)
 
+    # Process message
     worker = ProcessWorker(internal_queue)
     worker.process_message()
 
-    msg1 = "Task tests.tasks.index_incrementer raised error: with args: [] and kwargs: {'message': 23}: Traceback (most recent call last)"  # noqa
+    # Check output
+    msg1 = "Task tests.tasks.index_incrementer raised error: with args: [] and kwargs: {u'message': 23}: Traceback (most recent call last)"  # noqa
     logger.handlers[0].messages['error'][0].lower().should.contain(msg1.lower())
     msg2 = 'raise ValueError("Need to be given basestring, was given {}".format(message))\nValueError: Need to be given basestring, was given 23'  # noqa
     logger.handlers[0].messages['error'][0].lower().should.contain(msg2.lower())

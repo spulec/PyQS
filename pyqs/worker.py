@@ -87,14 +87,13 @@ class ReadWorker(BaseWorker):
 
             message_body = decode_message(message)
             try:
-                self.internal_queue.put(message_body, True, self.visibility_timeout)
+                self.internal_queue.put(message, True, self.visibility_timeout)
             except Full:
                 msg = "Timed out trying to add the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
                 logger.warning(msg)
                 continue
             else:
-                logger.debug("Message successfully added to internal queue, deleting from SQS queue {} with body: ".format(self.sqs_queue.name, message_body))  # noqa
-                message.delete()
+                logger.debug("Message successfully added to internal queue from SQS queue {} with body: {}".format(self.sqs_queue.name, message_body))  # noqa
 
 
 class ProcessWorker(BaseWorker):
@@ -113,13 +112,13 @@ class ProcessWorker(BaseWorker):
 
     def process_message(self):
         try:
-            next_message = self.internal_queue.get(timeout=0.5)
+            message = self.internal_queue.get(timeout=0.5)
         except Empty:
             return
-
-        full_task_path = next_message['task']
-        args = next_message['args']
-        kwargs = next_message['kwargs']
+        message_body = decode_message(message)
+        full_task_path = message_body['task']
+        args = message_body['args']
+        kwargs = message_body['kwargs']
 
         task_name = full_task_path.split(".")[-1]
         task_path = ".".join(full_task_path.split(".")[:-1])
@@ -139,6 +138,7 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
+            message.delete()
             logger.info(
                 "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
