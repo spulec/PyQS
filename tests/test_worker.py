@@ -33,8 +33,8 @@ def test_worker_fills_internal_queue():
     worker = ReadWorker(queue, internal_queue)
     worker.read_message()
 
-    found_message = internal_queue.get(timeout=1)
-    found_message_body = decode_message(found_message)
+    packed_message = internal_queue.get(timeout=1)
+    found_message_body = decode_message(packed_message['message'])
     found_message_body.should.equal({
         'task': 'tests.tasks.index_incrementer',
         'args': [],
@@ -92,8 +92,8 @@ def test_worker_fills_internal_queue_from_celery_task():
     worker = ReadWorker(queue, internal_queue)
     worker.read_message()
 
-    found_message = internal_queue.get(timeout=1)
-    found_message_body = decode_message(found_message)
+    packed_message = internal_queue.get(timeout=1)
+    found_message_body = decode_message(packed_message['message'])
     found_message_body.should.equal({
         'task': 'tests.tasks.index_incrementer',
         'args': [],
@@ -132,7 +132,14 @@ def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
     logger.handlers[0].messages['warning'][1].should.contain("Clearing Local messages since we exceeded their visibility_timeout")
 
 
+@mock_sqs
 def test_worker_processes_tasks_from_internal_queue():
+    del task_results[:]
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
     # Build the SQS message
     message_body = {
         'task': 'tests.tasks.index_incrementer',
@@ -147,7 +154,7 @@ def test_worker_processes_tasks_from_internal_queue():
 
     # Add message to queue
     internal_queue = Queue()
-    internal_queue.put(message)
+    internal_queue.put({"message": message, "queue": queue})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -164,11 +171,16 @@ def test_worker_processes_tasks_from_internal_queue():
         raise AssertionError("The internal queue should be empty")
 
 
+@mock_sqs
 def test_worker_processes_tasks_and_logs_correctly():
     # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
 
     # Build the SQS message
     message_body = {
@@ -184,7 +196,7 @@ def test_worker_processes_tasks_and_logs_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put(message)
+    internal_queue.put({"queue": queue, "message": message})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -195,11 +207,16 @@ def test_worker_processes_tasks_and_logs_correctly():
     logger.handlers[0].messages['info'].should.equal([expected_result])
 
 
+@mock_sqs
 def test_worker_processes_tasks_and_logs_warning_correctly():
     # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
     logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
 
     # Build the SQS Message
     message_body = {
@@ -215,7 +232,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put(message)
+    internal_queue.put({"queue": queue, "message": message})
 
     # Process message
     worker = ProcessWorker(internal_queue)

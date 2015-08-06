@@ -95,7 +95,7 @@ class ProcessWorker(BaseWorker):
 
     def __init__(self, internal_queue, connection_args=None, *args, **kwargs):
         super(ProcessWorker, self).__init__(*args, **kwargs)
-        if connection_args is not None:
+        if connection_args is None:
             self.conn = get_conn()
         else:
             self.conn = get_conn(**connection_args)
