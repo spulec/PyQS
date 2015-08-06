@@ -19,7 +19,7 @@ from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
-LONG_POLLING_INTERVAL = 30
+LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
 conn = None
 
