@@ -245,6 +245,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     logger.handlers[0].messages['error'][0].lower().should.contain(msg2.lower())
 
 
+@mock_sqs
 def test_worker_processes_empty_queue():
     internal_queue = Queue()
 
