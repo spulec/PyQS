@@ -19,6 +19,7 @@ from pyqs.utils import decode_message
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
+LONG_POLLING_INTERVAL = 30
 logger = logging.getLogger("pyqs")
 conn = None
 
@@ -69,11 +70,10 @@ class ReadWorker(BaseWorker):
 
         logger.info("Running ReadWorker: {}, pid: {}".format(self.sqs_queue.name, os.getpid()))
         while not self.should_exit.is_set() and self.parent_is_alive():
-            time.sleep(0.010)
             self.read_message()
 
     def read_message(self):
-        messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE)
+        messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE, wait_time_seconds=LONG_POLLING_INTERVAL)
         logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.sqs_queue.name))  # noqa
         start = time.time()
         for message in messages:
