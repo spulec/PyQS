@@ -21,16 +21,10 @@ PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
-conn = None
 
 
 def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    global conn
-    if conn:
-        return conn
-    else:
-        conn = boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
-        return conn
+    return boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
 
 
 def _get_region(region_name):
@@ -87,7 +81,8 @@ class ReadWorker(BaseWorker):
 
             message_body = decode_message(message)
             try:
-                self.internal_queue.put(message, True, self.visibility_timeout)
+                packed_message = {"queue": self.sqs_queue, "message": message}
+                self.internal_queue.put(packed_message, True, self.visibility_timeout)
             except Full:
                 msg = "Timed out trying to add the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
                 logger.warning(msg)
@@ -98,8 +93,12 @@ class ReadWorker(BaseWorker):
 
 class ProcessWorker(BaseWorker):
 
-    def __init__(self, internal_queue, *args, **kwargs):
+    def __init__(self, internal_queue, connection_args=None, *args, **kwargs):
         super(ProcessWorker, self).__init__(*args, **kwargs)
+        if connection_args is None:
+            self.conn = get_conn()
+        else:
+            self.conn = get_conn(**connection_args)
         self.internal_queue = internal_queue
 
     def run(self):
@@ -112,9 +111,11 @@ class ProcessWorker(BaseWorker):
 
     def process_message(self):
         try:
-            message = self.internal_queue.get(timeout=0.5)
+            packed_message = self.internal_queue.get(timeout=0.5)
         except Empty:
             return
+        message = packed_message['message']
+        queue = packed_message['queue']
         message_body = decode_message(message)
         full_task_path = message_body['task']
         args = message_body['args']
@@ -138,7 +139,7 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
-            message.delete()
+            self.conn.delete_message(queue, message)
             logger.info(
                 "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
@@ -151,9 +152,11 @@ class ProcessWorker(BaseWorker):
 class ManagerWorker(object):
 
     def __init__(self, queue_prefixes, worker_concurrency, region='us-east-1', access_key_id=None, secret_access_key=None):
-        self.region = region
-        self.access_key_id = access_key_id
-        self.secret_access_key = secret_access_key
+        self.connection_args = {
+            "region": region,
+            "access_key_id": access_key_id,
+            "secret_access_key": secret_access_key,
+        }
         self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -174,7 +177,7 @@ class ManagerWorker(object):
 
     def _initialize_worker_children(self, number):
         for index in range(number):
-            self.worker_children.append(ProcessWorker(self.internal_queue))
+            self.worker_children.append(ProcessWorker(self.internal_queue, connection_args=self.connection_args))
 
     def load_queue_prefixes(self, queue_prefixes):
         self.queue_prefixes = queue_prefixes
@@ -184,7 +187,7 @@ class ManagerWorker(object):
             logger.info("[Queue]\t{}".format(queue_prefix))
 
     def get_queues_from_queue_prefixes(self, queue_prefixes):
-        all_queues = get_conn(region=self.region, access_key_id=self.access_key_id, secret_access_key=self.secret_access_key).get_all_queues()
+        all_queues = get_conn(**self.connection_args).get_all_queues()
         matching_queues = []
         for prefix in queue_prefixes:
             matching_queues.extend([
@@ -261,6 +264,6 @@ class ManagerWorker(object):
             if not worker.is_alive():
                 logger.info("Worker Process {} is no longer responding, spawning a new worker.".format(worker.pid))
                 self.worker_children.pop(index)
-                worker = ProcessWorker(self.internal_queue)
+                worker = ProcessWorker(self.internal_queue, connection_args=self.connection_args)
                 worker.start()
                 self.worker_children.append(worker)
