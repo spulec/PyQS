@@ -1,3 +1,8 @@
+## 0.0.8
+
+* Switched to long polling when pulling down messages from SQS.
+* Moved message deletion from SQS until after message has been processed.
+
 ## 0.0.7
 
 * Added capability to read JSON encoded celery messages.
