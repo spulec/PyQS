@@ -291,6 +291,7 @@ def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
     worker.run.when.called_with().should.throw(Exception, "Called")
 
 
+@mock_sqs
 @patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
     # Setup PPID
@@ -326,6 +327,7 @@ def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
     worker.run().should.be.none
 
 
+@mock_sqs
 @patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
     # Setup PPID
@@ -358,6 +360,7 @@ def test_read_worker_with_parent_process_alive_and_should_exit(os):
     worker.run().should.be.none
 
 
+@mock_sqs
 @patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_alive_and_should_exit(os):
     # Setup PPID
