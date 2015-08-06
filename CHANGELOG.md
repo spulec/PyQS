@@ -1,3 +1,7 @@
+## 0.0.9
+
+* Change long polling interval to a valid value, 0<=LPI<=20
+
 ## 0.0.8
 
 * Switched to long polling when pulling down messages from SQS.
