@@ -1,3 +1,7 @@
+## 0.0.11
+
+* Add additional debugging to investigate message deletion errors
+
 ## 0.0.10
 
 * Give each process worker its own boto connection to avoid multiprocess race conditions during message deletion
