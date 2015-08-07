@@ -1,3 +1,7 @@
+## 0.0.12
+
+* Remove extraneous debugging code
+
 ## 0.0.11
 
 * Add additional debugging to investigate message deletion errors

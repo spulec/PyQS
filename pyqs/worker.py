@@ -139,21 +139,7 @@ class ProcessWorker(BaseWorker):
                 )
             )
         else:
-            # Im so sorry for nesting these, but I need to debug
-            try:
-                self.conn.delete_message(queue, message)
-            except Exception:
-                logger.exception(
-                    "Delete for message {} from queue {} for task {} with args {} and kwargs {} failed with exception {}".format(
-                        message.id,
-                        queue.id,
-                        full_task_path,
-                        args,
-                        kwargs,
-                        traceback.format_exc(),
-                    )
-                )
-
+            self.conn.delete_message(queue, message)
             logger.info(
                 "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
