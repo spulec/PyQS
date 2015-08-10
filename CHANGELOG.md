@@ -1,3 +1,7 @@
+## 0.0.13
+
+* Only pass SQS Queue ID to internal queue.  This is attempting to fix a bug when processing messages from multiple queues.
+
 ## 0.0.12
 
 * Remove extraneous debugging code
