@@ -154,7 +154,7 @@ def test_worker_processes_tasks_from_internal_queue():
 
     # Add message to queue
     internal_queue = Queue()
-    internal_queue.put({"message": message, "queue": queue})
+    internal_queue.put({"message": message, "queue": queue.id})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -196,7 +196,7 @@ def test_worker_processes_tasks_and_logs_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put({"queue": queue, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -232,7 +232,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put({"queue": queue, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message})
 
     # Process message
     worker = ProcessWorker(internal_queue)

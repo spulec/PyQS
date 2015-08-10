@@ -81,7 +81,7 @@ class ReadWorker(BaseWorker):
 
             message_body = decode_message(message)
             try:
-                packed_message = {"queue": self.sqs_queue, "message": message}
+                packed_message = {"queue": self.sqs_queue.id, "message": message}
                 self.internal_queue.put(packed_message, True, self.visibility_timeout)
             except Full:
                 msg = "Timed out trying to add the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
@@ -115,7 +115,7 @@ class ProcessWorker(BaseWorker):
         except Empty:
             return
         message = packed_message['message']
-        queue = packed_message['queue']
+        queue_id = packed_message['queue']
         message_body = decode_message(message)
         full_task_path = message_body['task']
         args = message_body['args']
@@ -138,8 +138,10 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
+            return
         else:
-            self.conn.delete_message(queue, message)
+            params = {'ReceiptHandle': message.receipt_handle}
+            self.conn.get_status('DeleteMessage', params, queue_id)
             logger.info(
                 "Processed task {} with args: {} and kwargs: {}".format(
                     full_task_path,
