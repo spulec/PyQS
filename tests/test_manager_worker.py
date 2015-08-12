@@ -14,6 +14,9 @@ from tests.utils import MockLoggingHandler
 
 @mock_sqs
 def test_manager_worker_create_proper_children_workers():
+    """
+    Test managing process creates multiple child workers
+    """
     conn = boto.connect_sqs()
     conn.create_queue("email")
 
@@ -25,6 +28,9 @@ def test_manager_worker_create_proper_children_workers():
 
 @mock_sqs
 def test_manager_worker_with_queue_prefix():
+    """
+    Test managing process can find queues by prefix
+    """
     conn = boto.connect_sqs()
     conn.create_queue("email.foobar")
     conn.create_queue("email.baz")
@@ -42,6 +48,9 @@ def test_manager_worker_with_queue_prefix():
 
 @mock_sqs
 def test_manager_start_and_stop():
+    """
+    Test managing process can start and stop child processes
+    """
     conn = boto.connect_sqs()
     conn.create_queue("email")
 
@@ -66,6 +75,9 @@ def test_manager_start_and_stop():
 @patch("pyqs.main.ManagerWorker")
 @mock_sqs
 def test_main_method(ManagerWorker):
+    """
+    Test creation of manager process from _main method
+    """
     _main(["email1", "email2"], concurrency=2)
 
     ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, region='us-east-1', secret_access_key=None, access_key_id=None)
@@ -76,6 +88,9 @@ def test_main_method(ManagerWorker):
 @patch("pyqs.main.ArgumentParser")
 @mock_sqs
 def test_real_main_method(ArgumentParser, _main):
+    """
+    Test parsing of arguments from main method
+    """
     ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3,
                                                                queues=["email1"],
                                                                logging_level="WARN",
@@ -94,6 +109,10 @@ def test_real_main_method(ArgumentParser, _main):
 
 @mock_sqs
 def test_master_spawns_worker_processes():
+    """
+    Test managing process creates child workers
+    """
+
     # Setup SQS Queue
     conn = boto.connect_sqs()
     conn.create_queue("tester")
@@ -115,6 +134,10 @@ def test_master_spawns_worker_processes():
 
 @mock_sqs
 def test_master_replaces_reader_processes():
+    """
+    Test managing process replaces reader children
+    """
+
     # Setup SQS Queue
     conn = boto.connect_sqs()
     conn.create_queue("tester")
@@ -140,6 +163,10 @@ def test_master_replaces_reader_processes():
 
 @mock_sqs
 def test_master_counts_processes():
+    """
+    Test managing process counts child processes
+    """
+
     # Setup Logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
@@ -168,6 +195,9 @@ def test_master_counts_processes():
 
 @mock_sqs
 def test_master_replaces_worker_processes():
+    """
+    Test managing process replaces worker processes
+    """
     # Setup SQS Queue
     conn = boto.connect_sqs()
     conn.create_queue("tester")
@@ -194,6 +224,10 @@ def test_master_replaces_worker_processes():
 @mock_sqs
 @patch("pyqs.worker.sys")
 def test_master_handles_signals(sys):
+    """
+    Test managing process handles OS signals
+    """
+
     # Setup SQS Queue
     conn = boto.connect_sqs()
     conn.create_queue("tester")
@@ -219,6 +253,10 @@ def test_master_handles_signals(sys):
 
 
 def test_region_from_string_that_exists():
+    """
+    Test region parsing from string for existing region
+    """
+
     region_name = 'us-east-1'
 
     region = _get_region(region_name)
@@ -226,6 +264,10 @@ def test_region_from_string_that_exists():
 
 
 def test_region_from_string_that_does_not_exist():
+    """
+    Test region parsing from string for non-existant region
+    """
+
     region_name = 'foobar'
 
     region = _get_region(region_name)
@@ -233,6 +275,9 @@ def test_region_from_string_that_does_not_exist():
 
 
 def test_region_from_string_that_is_none():
+    """
+    Test region parsing from empty string
+    """
     region_name = None
 
     region = _get_region(region_name)

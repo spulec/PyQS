@@ -8,6 +8,9 @@ from .tasks import index_incrementer, send_email
 
 @mock_sqs()
 def test_basic_delay():
+    """
+    Test delaying task to default queue
+    """
     conn = boto.connect_sqs()
     conn.create_queue("tests.tasks.index_incrementer")
 
@@ -32,7 +35,7 @@ def test_basic_delay():
 @mock_sqs()
 def test_specified_queue():
     """
-    Test with a task that specifies which queue to be put on
+    Test delaying task to specific queue
     """
     conn = boto.connect_sqs()
 

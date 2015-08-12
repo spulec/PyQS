@@ -15,6 +15,10 @@ from tests.utils import MockLoggingHandler
 
 @mock_sqs
 def test_worker_fills_internal_queue():
+    """
+    Test read workers fill internal queue
+    """
+
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
 
@@ -46,6 +50,9 @@ def test_worker_fills_internal_queue():
 
 @mock_sqs
 def test_worker_fills_internal_queue_only_until_maximum_queue_size():
+    """
+    Test read workers fill internal queue only to maximum size
+    """
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
     queue.set_timeout(1)  # Set visibility timeout low to improve test speed
@@ -80,6 +87,9 @@ def test_worker_fills_internal_queue_only_until_maximum_queue_size():
 
 @mock_sqs
 def test_worker_fills_internal_queue_from_celery_task():
+    """
+    Test read workers fill internal queue with celery tasks
+    """
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
 
@@ -104,36 +114,10 @@ def test_worker_fills_internal_queue_from_celery_task():
 
 
 @mock_sqs
-def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
-    # Setup logging
-    logger = logging.getLogger("pyqs")
-    logger.handlers.append(MockLoggingHandler())
-
-    # Setup SQS Queue
-    conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
-    queue.set_timeout(1)
-
-    # Add MEssages
-    message = Message()
-    body = '{"body": "KGRwMApTJ3Rhc2snCnAxClMndGVzdHMudGFza3MuaW5kZXhfaW5jcmVtZW50ZXInCnAyCnNTJ2Fy\\nZ3MnCnAzCihscDQKc1Mna3dhcmdzJwpwNQooZHA2ClMnbWVzc2FnZScKcDcKUydUZXN0IG1lc3Nh\\nZ2UyJwpwOApzcy4=\\n", "some stuff": "asdfasf"}'
-    message.set_body(body)
-    queue.write(message)
-    queue.write(message)
-    queue.write(message)
-
-    # Run Reader
-    internal_queue = Queue(maxsize=1)
-    worker = ReadWorker(queue, internal_queue)
-    worker.read_message()
-
-    # Check log messages
-    logger.handlers[0].messages['warning'][0].should.contain("Timed out trying to add the following message to the internal queue")
-    logger.handlers[0].messages['warning'][1].should.contain("Clearing Local messages since we exceeded their visibility_timeout")
-
-
-@mock_sqs
 def test_worker_processes_tasks_from_internal_queue():
+    """
+    Test worker processes read from internal queue
+    """
     del task_results[:]
 
     # Setup SQS Queue
@@ -172,7 +156,42 @@ def test_worker_processes_tasks_from_internal_queue():
 
 
 @mock_sqs
+def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
+    """
+    Test read workers respect visibility timeouts
+    """
+    # Setup logging
+    logger = logging.getLogger("pyqs")
+    logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+    queue.set_timeout(1)
+
+    # Add MEssages
+    message = Message()
+    body = '{"body": "KGRwMApTJ3Rhc2snCnAxClMndGVzdHMudGFza3MuaW5kZXhfaW5jcmVtZW50ZXInCnAyCnNTJ2Fy\\nZ3MnCnAzCihscDQKc1Mna3dhcmdzJwpwNQooZHA2ClMnbWVzc2FnZScKcDcKUydUZXN0IG1lc3Nh\\nZ2UyJwpwOApzcy4=\\n", "some stuff": "asdfasf"}'
+    message.set_body(body)
+    queue.write(message)
+    queue.write(message)
+    queue.write(message)
+
+    # Run Reader
+    internal_queue = Queue(maxsize=1)
+    worker = ReadWorker(queue, internal_queue)
+    worker.read_message()
+
+    # Check log messages
+    logger.handlers[0].messages['warning'][0].should.contain("Timed out trying to add the following message to the internal queue")
+    logger.handlers[0].messages['warning'][1].should.contain("Clearing Local messages since we exceeded their visibility_timeout")
+
+
+@mock_sqs
 def test_worker_processes_tasks_and_logs_correctly():
+    """
+    Test worker processes logs INFO correctly
+    """
     # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
@@ -209,6 +228,9 @@ def test_worker_processes_tasks_and_logs_correctly():
 
 @mock_sqs
 def test_worker_processes_tasks_and_logs_warning_correctly():
+    """
+    Test worker processes logs WARNING correctly
+    """
     # Setup logging
     logger = logging.getLogger("pyqs")
     del logger.handlers[:]
@@ -247,6 +269,9 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
 
 @mock_sqs
 def test_worker_processes_empty_queue():
+    """
+    Test worker processes read from empty internal queue
+    """
     internal_queue = Queue()
 
     worker = ProcessWorker(internal_queue)
@@ -255,6 +280,9 @@ def test_worker_processes_empty_queue():
 
 @patch("pyqs.worker.os")
 def test_parent_process_death(os):
+    """
+    Test worker processes recognize parent process death
+    """
     os.getppid.return_value = 1
 
     worker = BaseWorker()
@@ -263,6 +291,9 @@ def test_parent_process_death(os):
 
 @patch("pyqs.worker.os")
 def test_parent_process_alive(os):
+    """
+    Test worker processes recognize when parent process is alive
+    """
     os.getppid.return_value = 1234
 
     worker = BaseWorker()
@@ -272,6 +303,9 @@ def test_parent_process_alive(os):
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
+    """
+    Test read workers do not exit when parent is alive and shutdown is not set
+    """
     # Setup SQS Queue
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
@@ -293,57 +327,10 @@ def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
 
 @mock_sqs
 @patch("pyqs.worker.os")
-def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
-    # Setup PPID
-    os.getppid.return_value = 1234
-
-    # Setup dummy read_message
-    def process_message():
-        raise Exception("Called")
-
-    # When I have a parent process, and shutdown is not set
-    worker = ProcessWorker("foo")
-    worker.process_message = process_message
-
-    # Then process_message() is reached
-    worker.run.when.called_with().should.throw(Exception, "Called")
-
-
-@mock_sqs
-@patch("pyqs.worker.os")
-def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
-    # Setup SQS Queue
-    conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
-
-    # Setup PPID
-    os.getppid.return_value = 1
-
-    # When I have no parent process, and shutdown is not set
-    worker = ReadWorker(queue, "foo")
-    worker.read_message = Mock()
-
-    # Then I return from run()
-    worker.run().should.be.none
-
-
-@mock_sqs
-@patch("pyqs.worker.os")
-def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
-    # Setup PPID
-    os.getppid.return_value = 1
-
-    # When I have no parent process, and shutdown is not set
-    worker = ProcessWorker("foo")
-    worker.process_message = Mock()
-
-    # Then I return from run()
-    worker.run().should.be.none
-
-
-@mock_sqs
-@patch("pyqs.worker.os")
 def test_read_worker_with_parent_process_alive_and_should_exit(os):
+    """
+    Test read workers exit when parent is alive and shutdown is set
+    """
     # Setup SQS Queue
     conn = boto.connect_sqs()
     queue = conn.create_queue("tester")
@@ -362,7 +349,69 @@ def test_read_worker_with_parent_process_alive_and_should_exit(os):
 
 @mock_sqs
 @patch("pyqs.worker.os")
+def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
+    """
+    Test read workers exit when parent is dead and shutdown is not set
+    """
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Setup PPID
+    os.getppid.return_value = 1
+
+    # When I have no parent process, and shutdown is not set
+    worker = ReadWorker(queue, "foo")
+    worker.read_message = Mock()
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
+def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
+    """
+    Test worker processes do not exit when parent is alive and shutdown is not set
+    """
+    # Setup PPID
+    os.getppid.return_value = 1234
+
+    # Setup dummy read_message
+    def process_message():
+        raise Exception("Called")
+
+    # When I have a parent process, and shutdown is not set
+    worker = ProcessWorker("foo")
+    worker.process_message = process_message
+
+    # Then process_message() is reached
+    worker.run.when.called_with().should.throw(Exception, "Called")
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
+def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
+    """
+    Test worker processes exit when parent is dead and shutdown is not set
+    """
+    # Setup PPID
+    os.getppid.return_value = 1
+
+    # When I have no parent process, and shutdown is not set
+    worker = ProcessWorker("foo")
+    worker.process_message = Mock()
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+
+@mock_sqs
+@patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_alive_and_should_exit(os):
+    """
+    Test worker processes exit when parent is alive and shutdown is set
+    """
     # Setup PPID
     os.getppid.return_value = 1234
 
