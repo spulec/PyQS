@@ -41,7 +41,7 @@ clean:
 	@find . -name __pycache__ -delete
 	@rm -rf .coverage *.egg-info *.log build dist MANIFEST yc
 
-publish: clean
+publish: clean tag
 	@if [ -e "$$HOME/.pypirc" ]; then \
 		echo "Uploading to '$(CUSTOM_PIP_INDEX)'"; \
 		python setup.py register -r "$(CUSTOM_PIP_INDEX)"; \
@@ -55,7 +55,7 @@ publish: clean
 tag:
 	@if [ $$(git rev-list $$(git describe --abbrev=0 --tags)..HEAD --count) -gt 0 ]; then \
 		if [ $$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.md | wc -l) -gt 0 ]; then \
-			git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your version!'
+			git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your version!'; \
 		else \
 			echo "CHANGELOG not updated since last release!"; \
 			exit 1; \
@@ -70,7 +70,7 @@ tag:
 # number_of_changelog_commits_since_last_tag=$$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.md | wc -l)
 # @if [ ${number_of_commits_since_last_tag} -gt 0 ]; then \
 # 	if [ ${number_of_changelog_commits_since_last_tag} -gt 0 ]; then \
-# 		git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your setup.py version!' ;  \
+# 		git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your setup.py ver!' ;  \
 # 	else \
 # 		echo "CHANGELOG not updated since last release!"; \
 # 		exit 1; \
