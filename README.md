@@ -70,6 +70,20 @@ If you want to run more workers to process tasks, you can up the concurrency.  T
 $ pyqs send_email --concurrency 10
 ```
 
+#### Operational Notes
+
+**Worker Seppuku**
+
+Each process worker will shut itself down after `100` tasks have been processed (or failed to process).  This is to prevent issues with stale connections lingering and blocking tasks forever.  In addition it helps guard against memory leaks, though in a rather brutish fashion.  After the process worker shut itself down the managing process should notice and restart it promptly.  The value of `100` is currently hard-coded, but could be configurable.
+
+**Queue Blocking**
+
+While there are multiple workers for reading from different queues, they all append to the same internal queue.  This means that if you have one queue with lots of fast tasks, and another with a few slow tasks, they can block eachother and the fast tasks can build up behind the slow tasks.  The simplest solution is to just run two different `PyQS` commands, one for each queue with appropriate concurrency settings.
+
+**Visibility Timeout**
+
+Care is taken to not process messages that have exceeded the visibility timeout of their queue.  The goal is to prevent double processing of tasks.  However, it is still quite possible for this to happen since we do not use transactional semantics around tasks.  Therefore, it is important to properly set the visibility timeout on your queues based on the expected length of your tasks. If the timeout is too short, tasks will be processed twice, or very slowly.  If it is too long, ephemeral failures will delay messages and reduce the queue throughput drastically.  This is related to the queue blocking described above as well.  SQS queues are free, so it is good practice to keep the messages stored in each as homogenous as possible.
+
 #### Compatability
 
 **Celery:**
@@ -90,7 +104,7 @@ When running PyQS from the command-line you can pass `--region`, `--access-key-i
 
 **Durability:**
 
-When we read a batch of messages from SQS we attempt to add them to our internal queue until we exceed the visibility timeout of the queue.  Once this is exceeded, we discard the messages and grab a new batch.  The goal is to reduce double processing.  However, this system does not provide transactions and there are cases where it is possible to process a message who's visibility timeout has been exceeded.  It is up to you to make sure that you can handle this edge case.
+When we read a batch of messages from SQS we attempt to add them to our internal queue until we exceed the visibility timeout of the queue.  Once this is exceeded, we discard the messages and grab a new batch.  Additionally, when a process worker gets a message from the internal queue, the time the message was fetched from SQS is checked against the queues visibility timeout and discarded if it exceeds the timeout. The goal is to reduce double processing.  However, this system does not provide transactions and there are cases where it is possible to process a message who's visibility timeout has been exceeded.  It is up to you to make sure that you can handle this edge case.
 
 **Task Importing:**
 
