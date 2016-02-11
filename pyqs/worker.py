@@ -81,7 +81,12 @@ class ReadWorker(BaseWorker):
 
             message_body = decode_message(message)
             try:
-                packed_message = {"queue": self.sqs_queue.id, "message": message}
+                packed_message = {
+                    "queue": self.sqs_queue.id,
+                    "message": message,
+                    "start_time": start,
+                    "timeout": self.visibility_timeout,
+                }
                 self.internal_queue.put(packed_message, True, self.visibility_timeout)
             except Full:
                 msg = "Timed out trying to add the following message to the internal queue after {} seconds: {}".format(self.visibility_timeout, message_body)  # noqa
@@ -121,6 +126,8 @@ class ProcessWorker(BaseWorker):
             return
         message = packed_message['message']
         queue_id = packed_message['queue']
+        fetch_time = packed_message['start_time']
+        timeout = packed_message['timeout']
         message_body = decode_message(message)
         full_task_path = message_body['task']
         args = message_body['args']
@@ -132,6 +139,17 @@ class ProcessWorker(BaseWorker):
         task_module = importlib.import_module(task_path)
 
         task = getattr(task_module, task_name)
+
+        current_time = time.time()
+        if int(current_time - fetch_time) >= timeout:
+            logger.warning(
+                "Discarding task {} with args: {} and kwargs: {} due to exceeding visibility timeout".format(  # noqa
+                    full_task_path,
+                    repr(args),
+                    repr(kwargs),
+                )
+            )
+            return
         try:
             start_time = time.clock()
             task(*args, **kwargs)

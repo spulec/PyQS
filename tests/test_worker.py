@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+
 from multiprocessing import Queue
 from Queue import Empty
 
@@ -138,7 +140,7 @@ def test_worker_processes_tasks_from_internal_queue():
 
     # Add message to queue
     internal_queue = Queue()
-    internal_queue.put({"message": message, "queue": queue.id})
+    internal_queue.put({"message": message, "queue": queue.id, "start_time": time.time(), "timeout": 30})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -215,7 +217,7 @@ def test_worker_processes_tasks_and_logs_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put({"queue": queue.id, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -254,7 +256,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
 
     # Add message to internal queue
     internal_queue = Queue()
-    internal_queue.put({"queue": queue.id, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # Process message
     worker = ProcessWorker(internal_queue)
@@ -447,9 +449,9 @@ def test_worker_processes_shuts_down_after_processing_its_maximum_number_of_mess
 
     # Add message to internal queue
     internal_queue = Queue(3)
-    internal_queue.put({"queue": queue.id, "message": message})
-    internal_queue.put({"queue": queue.id, "message": message})
-    internal_queue.put({"queue": queue.id, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # When I Process messages
     worker = ProcessWorker(internal_queue)
@@ -461,3 +463,42 @@ def test_worker_processes_shuts_down_after_processing_its_maximum_number_of_mess
     # With messages still on the queue
     internal_queue.empty().should.be.false
     internal_queue.full().should.be.false
+
+
+@mock_sqs
+def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
+    """
+    Test worker processes discards tasks that exceed their visibility timeout
+    """
+    # Setup logging
+    logger = logging.getLogger("pyqs")
+    del logger.handlers[:]
+    logger.handlers.append(MockLoggingHandler())
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Build the SQS Message
+    message_body = {
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 23,
+        },
+    }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to internal queue with timeout of 0 that started long ago
+    internal_queue = Queue()
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": 0, "timeout": 0})
+
+    # When I process the message
+    worker = ProcessWorker(internal_queue)
+    worker.process_message()
+
+    # Then I get an error about exceeding the visibility timeout
+    msg1 = "Discarding task tests.tasks.index_incrementer with args: [] and kwargs: {u'message': 23} due to exceeding visibility timeout"  # noqa
+    logger.handlers[0].messages['warning'][0].lower().should.contain(msg1.lower())
