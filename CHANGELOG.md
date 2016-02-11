@@ -1,3 +1,9 @@
+## 0.0.14
+
+* Process workers will kill themselves after processing 100 requests
+* Process workers will check a message's fetch time and visibility timeout before processing, discarding it if it has exceeded the timeout.
+* Log the `process_time()` used to process a task to the INFO level.
+
 ## 0.0.13
 
 * Only pass SQS Queue ID to internal queue.  This is attempting to fix a bug when processing messages from multiple queues.
