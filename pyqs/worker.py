@@ -128,11 +128,15 @@ class ProcessWorker(BaseWorker):
 
         task = getattr(task_module, task_name)
         try:
+            start_time = time.clock()
             task(*args, **kwargs)
+            end_time = time.clock()
         except Exception:
+            end_time = time.clock()
             logger.exception(
-                "Task {} raised error: with args: {} and kwargs: {}: {}".format(
+                "Task {} raised error in {:.4f} seconds: with args: {} and kwargs: {}: {}".format(
                     full_task_path,
+                    end_time - start_time,
                     args,
                     kwargs,
                     traceback.format_exc(),
@@ -143,8 +147,9 @@ class ProcessWorker(BaseWorker):
             params = {'ReceiptHandle': message.receipt_handle}
             self.conn.get_status('DeleteMessage', params, queue_id)
             logger.info(
-                "Processed task {} with args: {} and kwargs: {}".format(
+                "Processed task {} in {:.4f} seconds with args: {} and kwargs: {}".format(
                     full_task_path,
+                    end_time - start_time,
                     repr(args),
                     repr(kwargs),
                 )
