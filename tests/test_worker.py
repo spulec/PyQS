@@ -422,3 +422,42 @@ def test_process_worker_with_parent_process_alive_and_should_exit(os):
 
     # Then I return from run()
     worker.run().should.be.none
+
+
+@mock_sqs
+def test_worker_processes_shuts_down_after_processing_its_maximum_number_of_messages():
+    """
+    Test worker processes shutdown after processing maximum number of messages
+    """
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Build the SQS Message
+    message_body = {
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 23,
+        },
+    }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to internal queue
+    internal_queue = Queue(3)
+    internal_queue.put({"queue": queue.id, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message})
+    internal_queue.put({"queue": queue.id, "message": message})
+
+    # When I Process messages
+    worker = ProcessWorker(internal_queue)
+    worker._messages_to_process_before_shutdown = 2
+
+    # Then I return from run()
+    worker.run().should.be.none
+
+    # With messages still on the queue
+    internal_queue.empty().should.be.false
+    internal_queue.full().should.be.false

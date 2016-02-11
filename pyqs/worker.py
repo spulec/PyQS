@@ -100,14 +100,19 @@ class ProcessWorker(BaseWorker):
         else:
             self.conn = get_conn(**connection_args)
         self.internal_queue = internal_queue
+        self._messages_to_process_before_shutdown = 100
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
+        messages_processed = 0
         while not self.should_exit.is_set() and self.parent_is_alive():
             self.process_message()
+            messages_processed += 1
+            if messages_processed >= self._messages_to_process_before_shutdown:
+                self.shutdown()
 
     def process_message(self):
         try:
@@ -130,7 +135,6 @@ class ProcessWorker(BaseWorker):
         try:
             start_time = time.clock()
             task(*args, **kwargs)
-            end_time = time.clock()
         except Exception:
             end_time = time.clock()
             logger.exception(
@@ -144,6 +148,7 @@ class ProcessWorker(BaseWorker):
             )
             return
         else:
+            end_time = time.clock()
             params = {'ReceiptHandle': message.receipt_handle}
             self.conn.get_status('DeleteMessage', params, queue_id)
             logger.info(
