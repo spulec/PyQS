@@ -117,6 +117,9 @@ class ProcessWorker(BaseWorker):
             processed = self.process_message()
             if processed:
                 messages_processed += 1
+            else:
+                # If we have no messages wait a moment before rechecking.
+                time.sleep(0.001)
             if messages_processed >= self._messages_to_process_before_shutdown:
                 self.shutdown()
 
