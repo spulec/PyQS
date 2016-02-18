@@ -1,3 +1,7 @@
+## 0.0.16
+
+* Switch README to ReStructed Text (.rst) format so it renders on PyPI
+
 ## 0.0.15
 
 * Process workers will kill themselves after attempting to process 100 requests, instead of checking the internal queue 100 times.
