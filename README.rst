@@ -127,7 +127,7 @@ drastically. This is related to the queue blocking described above as
 well. SQS queues are free, so it is good practice to keep the messages
 stored in each as homogenous as possible.
 
-Compatability
+Compatibility
 ~~~~~~~~~~~~~
 
 **Celery:**
