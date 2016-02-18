@@ -114,8 +114,9 @@ class ProcessWorker(BaseWorker):
         logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
         messages_processed = 0
         while not self.should_exit.is_set() and self.parent_is_alive():
-            self.process_message()
-            messages_processed += 1
+            processed = self.process_message()
+            if processed:
+                messages_processed += 1
             if messages_processed >= self._messages_to_process_before_shutdown:
                 self.shutdown()
 
@@ -123,7 +124,8 @@ class ProcessWorker(BaseWorker):
         try:
             packed_message = self.internal_queue.get(timeout=0.5)
         except Empty:
-            return
+            # Return False if we did not attempt to process any messages
+            return False
         message = packed_message['message']
         queue_id = packed_message['queue']
         fetch_time = packed_message['start_time']
@@ -149,7 +151,7 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
-            return
+            return True
         try:
             start_time = time.clock()
             task(*args, **kwargs)
@@ -164,7 +166,7 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
-            return
+            return True
         else:
             end_time = time.clock()
             params = {'ReceiptHandle': message.receipt_handle}
@@ -177,6 +179,7 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
+        return True
 
 
 class ManagerWorker(object):

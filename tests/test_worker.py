@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import threading
 
 from multiprocessing import Queue
 from Queue import Empty
@@ -502,3 +503,45 @@ def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
     # Then I get an error about exceeding the visibility timeout
     msg1 = "Discarding task tests.tasks.index_incrementer with args: [] and kwargs: {u'message': 23} due to exceeding visibility timeout"  # noqa
     logger.handlers[0].messages['warning'][0].lower().should.contain(msg1.lower())
+
+
+@mock_sqs
+def test_worker_processes_only_increases_processed_counter_if_a_message_was_processed():
+    """
+    Test worker process only increases processed counter if a message was processed
+    """
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Build the SQS Message
+    message_body = {
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 23,
+        },
+    }
+    message = Message()
+    body = json.dumps(message_body)
+    message.set_body(body)
+
+    # Add message to internal queue
+    internal_queue = Queue(3)
+    internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
+
+    # And we add a message to the queue later
+    def sleep_and_queue(internal_queue):
+        time.sleep(1)
+        internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
+
+    thread = threading.Thread(target=sleep_and_queue, args=(internal_queue,))
+    thread.daemon = True
+    thread.start()
+
+    # When I Process messages
+    worker = ProcessWorker(internal_queue)
+    worker._messages_to_process_before_shutdown = 2
+
+    # Then I return from run() after processing 2 messages
+    worker.run().should.be.none
