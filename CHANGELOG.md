@@ -1,3 +1,8 @@
+## 0.0.15
+
+* Process workers will kill themselves after attempting to process 100 requests, instead of checking the internal queue 100 times.
+* If we find no messages on the internal queue, sleep for a moment before rechecking.
+
 ## 0.0.14
 
 * Process workers will kill themselves after processing 100 requests
