@@ -94,6 +94,21 @@ messages.
 Operational Notes
 ~~~~~~~~~~~~~~~~~
 
+**Dead Letter Queues**
+
+It is recommended to use a `Dead Letter Queue <http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html>`__
+for any queues that are managed by PyQS.  This is because the current strategy
+for fetching messages does not delete them upon initial receipt.  A message is
+**ONLY** deleted from SQS upon successful completion. **This is probably
+unexpected behavior if you are coming from Celery with SQS.**  Celery attempted
+to manage this behavior internally, with varying success.
+
+If an error arises during message processing, it will be discarded and will
+re-appear after the visibility timeout.  This can lead to behavior where
+there are messages that will never leave the queue and continuously throw
+errors.  A Dead Letter Queue helps resolve this by collecting messages that
+have be retried a specified number of times.
+
 **Worker Seppuku**
 
 Each process worker will shut itself down after ``100`` tasks have been
@@ -168,7 +183,7 @@ queue, the time the message was fetched from SQS is checked against the
 queues visibility timeout and discarded if it exceeds the timeout. The
 goal is to reduce double processing. However, this system does not
 provide transactions and there are cases where it is possible to process
-a message who's visibility timeout has been exceeded. It is up to you to
+a message whos' visibility timeout has been exceeded. It is up to you to
 make sure that you can handle this edge case.
 
 **Task Importing:**
