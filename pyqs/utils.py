@@ -23,4 +23,4 @@ def decode_celery_message(json_task):
 
 
 def function_to_import_path(function):
-    return "{}.{}".format(function.__module__, function.func_name)
+    return "{}.{}".format(function.__module__, function.__name__)

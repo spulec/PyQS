@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import fnmatch
 import importlib
@@ -11,7 +11,7 @@ import traceback
 import time
 
 from multiprocessing import Event, Process, Queue
-from Queue import Empty, Full
+from queue import Empty, Full
 
 import boto
 
@@ -276,8 +276,8 @@ class ManagerWorker(object):
         sys.exit(0)
 
     def process_counts(self):
-        reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
-        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
+        reader_count = sum([x.is_alive() for x in self.reader_children])
+        worker_count = sum([x.is_alive() for x in self.worker_children])
         logger.debug("Reader Processes: {}".format(reader_count))
         logger.debug("Worker Processes: {}".format(worker_count))
 
