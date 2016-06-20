@@ -15,23 +15,12 @@ from queue import Empty, Full
 
 import boto
 
-from pyqs.utils import decode_message
+from pyqs.utils import decode_message, get_conn
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
-
-
-def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    return boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
-
-
-def _get_region(region_name):
-    if region_name is not None:
-        for region in boto.sqs.regions():
-            if region.name == region_name:
-                return region
 
 
 class BaseWorker(Process):

@@ -4,7 +4,7 @@ import logging
 import boto
 from boto.sqs.message import Message
 
-from .utils import function_to_import_path
+from .utils import function_to_import_path, get_conn
 
 logger = logging.getLogger("pyqs")
 
@@ -14,7 +14,7 @@ conn = None
 def get_or_create_queue(queue_name):
     global conn
     if conn is None:
-        conn = boto.connect_sqs()
+        conn = get_conn()
     queue = conn.get_queue(queue_name)
     if queue:
         return queue
