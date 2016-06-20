@@ -6,6 +6,9 @@ import boto
 import boto.sqs
 
 
+PYQS_ENDPOINT_URL = os.environ.get('PYQS_ENDPOINT_URL', None)
+
+
 def decode_message(message):
     message_body = message.get_body()
     json_body = json.loads(message_body)
@@ -30,7 +33,7 @@ def function_to_import_path(function):
 
 
 def get_conn(region=None, access_key_id=None, secret_access_key=None,
-             endpoint_url=None):
+             endpoint_url=PYQS_ENDPOINT_URL):
     if endpoint_url:
         host, port = endpoint_url.split(':')
         local_region = boto.sqs.regioninfo.RegionInfo(name='elasticmq',
