@@ -50,10 +50,17 @@ local_file = lambda f: \
 
 install_requires, dependency_links = parse_requirements()
 
+with open('README.rst') as readme_file:
+    readme = readme_file.read()
+
+with open('CHANGELOG.rst') as changelog_file:
+    changelog = changelog_file.read()
+
 setup(
     name='pyqs',
     version=version,
     description='A simple task-queue for SQS.',
+    long_description=readme + '\n\n' + changelog,
     author='Steve Pulec',
     author_email='spulec@gmail',
     url='https://github.com/spulec/pyqs',
