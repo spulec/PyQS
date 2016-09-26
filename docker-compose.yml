@@ -1,0 +1,4 @@
+console:
+  build: .
+  volumes:
+    - .:/usr/src/app

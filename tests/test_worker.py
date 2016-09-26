@@ -4,7 +4,7 @@ import time
 import threading
 
 from multiprocessing import Queue
-from Queue import Empty
+from queue import Empty
 
 import boto
 from boto.sqs.message import Message
@@ -225,7 +225,7 @@ def test_worker_processes_tasks_and_logs_correctly():
     worker.process_message()
 
     # Check output
-    expected_result = u"Processed task tests.tasks.index_incrementer in 0.0000 seconds with args: [] and kwargs: {u'message': u'Test message'}"
+    expected_result = "Processed task tests.tasks.index_incrementer in 0.0000 seconds with args: [] and kwargs: {u'message': u'Test message'}"
     logger.handlers[0].messages['info'].should.equal([expected_result])
 
 

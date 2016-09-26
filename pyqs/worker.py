@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import fnmatch
 import importlib
@@ -11,27 +11,16 @@ import traceback
 import time
 
 from multiprocessing import Event, Process, Queue
-from Queue import Empty, Full
+from queue import Empty, Full
 
 import boto
 
-from pyqs.utils import decode_message
+from pyqs.utils import decode_message, get_conn
 
 PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
-
-
-def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    return boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
-
-
-def _get_region(region_name):
-    if region_name is not None:
-        for region in boto.sqs.regions():
-            if region.name == region_name:
-                return region
 
 
 class BaseWorker(Process):
@@ -276,8 +265,8 @@ class ManagerWorker(object):
         sys.exit(0)
 
     def process_counts(self):
-        reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
-        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
+        reader_count = sum([x.is_alive() for x in self.reader_children])
+        worker_count = sum([x.is_alive() for x in self.worker_children])
         logger.debug("Reader Processes: {}".format(reader_count))
         logger.debug("Worker Processes: {}".format(worker_count))
 

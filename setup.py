@@ -71,6 +71,6 @@ setup(
     },
     install_requires=install_requires,
     dependency_links=dependency_links,
-    packages=filter(lambda n: not n.startswith('tests'), find_packages()),
+    packages=[p for p in find_packages() if not p.startswith('tests')],
     include_package_data=True,
 )

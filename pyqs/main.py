@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import logging
 from argparse import ArgumentParser
@@ -31,6 +31,17 @@ Run PyQS workers for the given queues
         nargs="+",
         type=str,
         help='Queues to process',
+        action="store",
+    )
+
+    parser.add_argument(
+        "--logConfig",
+        "--log_config",
+        "--log-config",
+        dest="logging_config",
+        type=str,
+        default="WARN",
+        help='Set logging conf file',
         action="store",
     )
 
@@ -79,12 +90,20 @@ Run PyQS workers for the given queues
           logging_level=args.logging_level,
           region=args.region,
           access_key_id=args.access_key_id,
-          secret_access_key=args.secret_access_key
-          )
+          secret_access_key=args.secret_access_key,
+          logging_config=args.logging_config)
 
 
-def _main(queue_prefixes, concurrency=5, logging_level="WARN", region='us-east-1', access_key_id=None, secret_access_key=None):
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
+def _main(queue_prefixes, concurrency=5, logging_level="WARN",
+          region='us-east-1', access_key_id=None, secret_access_key=None,
+          logging_config=None):
+
+    if logging_config:
+        logging.config.fileConfig(logging_config)
+    else:
+        logging.basicConfig(format="[%(levelname)s]: %(message)s",
+                            level=getattr(logging, logging_level))
+
     logger.info("Starting PyQS version {}".format(__version__))
     manager = ManagerWorker(queue_prefixes, concurrency, region=region, access_key_id=access_key_id, secret_access_key=secret_access_key)
     manager.start()
