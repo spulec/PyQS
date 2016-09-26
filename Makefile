@@ -54,7 +54,7 @@ publish: clean tag
 
 tag:
 	@if [ $$(git rev-list $$(git describe --abbrev=0 --tags)..HEAD --count) -gt 0 ]; then \
-		if [ $$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.md | wc -l) -gt 0 ]; then \
+		if [ $$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.rst | wc -l) -gt 0 ]; then \
 			git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your version!'; \
 		else \
 			echo "CHANGELOG not updated since last release!"; \
