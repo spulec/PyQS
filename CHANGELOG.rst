@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.0.18
+~~~~~~
+
+- Convert Changelog to .rst
+- Add Changelog to long description on Pypi.  Thanks to @adamchainz
+
 0.0.17
 ~~~~~~
 
