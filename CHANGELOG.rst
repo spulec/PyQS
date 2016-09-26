@@ -10,13 +10,13 @@ Changelog
 0.0.17
 ~~~~~~
 
--  Fix Typose in README
+-  Fix typos in README
 -  Add notes on Dead Letter Queues to README
 
 0.0.16
 ~~~~~~
 
--  Switch README to ReStructed Text (.rst) format so it renders on PyPI
+-  Switch README to reStructuredText (.rst) format so it renders on PyPI
 
 0.0.15
 ~~~~~~
