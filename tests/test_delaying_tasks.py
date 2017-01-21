@@ -3,7 +3,7 @@ import json
 import boto
 from moto import mock_sqs
 
-from .tasks import index_incrementer, send_email
+from .tasks import index_incrementer, send_email, delayed_task
 
 
 @mock_sqs()
@@ -47,3 +47,21 @@ def test_specified_queue():
     queue = all_queues[0]
     queue.name.should.equal("email")
     queue.count().should.equal(1)
+
+
+@mock_sqs()
+def test_message_delay():
+    """
+    Test delaying task to specific queue
+    """
+
+    conn = boto.connect_sqs()
+
+    delayed_task.delay()
+
+    all_queues = conn.get_all_queues()
+    len(all_queues).should.equal(1)
+
+    queue = all_queues[0]
+    queue.name.should.equal("delayed")
+    queue.count().should.equal(0)
