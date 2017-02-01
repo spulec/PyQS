@@ -14,3 +14,8 @@ def index_incrementer(message, extra=None):
 @task(queue='email')
 def send_email(subject, message):
     pass
+
+
+@task(queue='delayed', delay_seconds=5)
+def delayed_task():
+    pass

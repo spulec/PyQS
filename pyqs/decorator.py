@@ -22,7 +22,7 @@ def get_or_create_queue(queue_name):
         return conn.create_queue(queue_name)
 
 
-def task_delayer(func_to_delay, queue_name):
+def task_delayer(func_to_delay, queue_name, delay_seconds=None):
     function_path = function_to_import_path(func_to_delay)
 
     if not queue_name:
@@ -41,16 +41,17 @@ def task_delayer(func_to_delay, queue_name):
 
         message = Message()
         message.set_body(json.dumps(message_dict))
-        queue.write(message)
+        queue.write(message, delay_seconds)
 
     return wrapper
 
 
 class task(object):
-    def __init__(self, queue=None):
+    def __init__(self, queue=None, delay_seconds=None):
         self.queue_name = queue
+        self.delay_seconds = delay_seconds
 
     def __call__(self, *args, **kwargs):
         func_to_wrap = args[0]
-        func_to_wrap.delay = task_delayer(func_to_wrap, self.queue_name)
+        func_to_wrap.delay = task_delayer(func_to_wrap, self.queue_name, self.delay_seconds)
         return func_to_wrap
