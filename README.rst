@@ -1,8 +1,7 @@
 PyQS - Python task-queues for Amazon SQS |Build Status| |Coverage Status|
 =========================================================================
 
-**WARNING: This library is still in beta. It can do anything up to and
-including eating your laundry.**
+**WARNING: This library is still in beta. It has a stable API and has been deployed in production, but we have not received feedback from a large number of use cases, and it is possible there are unknown bugs.**
 
 PyQS is a simple task manager for SQS. It's goal is to provide a simple
 and reliable `celery <https://pypi.python.org/pypi/celery>`__-compatible
