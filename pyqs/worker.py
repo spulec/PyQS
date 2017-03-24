@@ -52,11 +52,16 @@ class BaseWorker(Process):
 
 class ReadWorker(BaseWorker):
 
-    def __init__(self, sqs_queue, internal_queue, *args, **kwargs):
+    def __init__(self, sqs_queue, internal_queue, batchsize, *args, **kwargs):
         super(ReadWorker, self).__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.visibility_timeout = self.sqs_queue.get_timeout()
         self.internal_queue = internal_queue
+        self.batchsize = batchsize
+        if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
+            self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
+        if batchsize <= 0:
+            self.batchsize = 1
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
@@ -67,7 +72,8 @@ class ReadWorker(BaseWorker):
             self.read_message()
 
     def read_message(self):
-        messages = self.sqs_queue.get_messages(MESSAGE_DOWNLOAD_BATCH_SIZE, wait_time_seconds=LONG_POLLING_INTERVAL)
+
+        messages = self.sqs_queue.get_messages(self.batchsize, wait_time_seconds=LONG_POLLING_INTERVAL)
         logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.sqs_queue.name))  # noqa
         start = time.time()
         for message in messages:
@@ -98,14 +104,16 @@ class ReadWorker(BaseWorker):
 
 class ProcessWorker(BaseWorker):
 
-    def __init__(self, internal_queue, connection_args=None, *args, **kwargs):
+    def __init__(self, internal_queue, interval, connection_args=None, *args, **kwargs):
         super(ProcessWorker, self).__init__(*args, **kwargs)
         if connection_args is None:
             self.conn = get_conn()
         else:
             self.conn = get_conn(**connection_args)
         self.internal_queue = internal_queue
+        self.interval = interval
         self._messages_to_process_before_shutdown = 100
+        
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
@@ -117,6 +125,7 @@ class ProcessWorker(BaseWorker):
             processed = self.process_message()
             if processed:
                 messages_processed += 1
+                time.sleep(self.interval)
             else:
                 # If we have no messages wait a moment before rechecking.
                 time.sleep(0.001)
@@ -187,12 +196,14 @@ class ProcessWorker(BaseWorker):
 
 class ManagerWorker(object):
 
-    def __init__(self, queue_prefixes, worker_concurrency, region='us-east-1', access_key_id=None, secret_access_key=None):
+    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize, region='us-east-1', access_key_id=None, secret_access_key=None):
         self.connection_args = {
             "region": region,
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
         }
+        self.interval = interval
+        self.batchsize = batchsize
         self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -209,11 +220,11 @@ class ManagerWorker(object):
 
     def _initialize_reader_children(self):
         for queue in self.queues:
-            self.reader_children.append(ReadWorker(queue, self.internal_queue))
+            self.reader_children.append(ReadWorker(queue, self.internal_queue, self.batchsize))
 
     def _initialize_worker_children(self, number):
         for index in range(number):
-            self.worker_children.append(ProcessWorker(self.internal_queue, connection_args=self.connection_args))
+            self.worker_children.append(ProcessWorker(self.internal_queue, self.interval, connection_args=self.connection_args))
 
     def load_queue_prefixes(self, queue_prefixes):
         self.queue_prefixes = queue_prefixes
@@ -291,7 +302,7 @@ class ManagerWorker(object):
                 logger.info("Reader Process {} is no longer responding, spawning a new reader.".format(reader.pid))
                 queue = reader.sqs_queue
                 self.reader_children.pop(index)
-                worker = ReadWorker(queue, self.internal_queue)
+                worker = ReadWorker(queue, self.internal_queue, self.batchsize)
                 worker.start()
                 self.reader_children.append(worker)
 
@@ -300,6 +311,6 @@ class ManagerWorker(object):
             if not worker.is_alive():
                 logger.info("Worker Process {} is no longer responding, spawning a new worker.".format(worker.pid))
                 self.worker_children.pop(index)
-                worker = ProcessWorker(self.internal_queue, connection_args=self.connection_args)
+                worker = ProcessWorker(self.internal_queue, self.interval, connection_args=self.connection_args)
                 worker.start()
                 self.worker_children.append(worker)

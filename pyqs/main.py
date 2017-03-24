@@ -72,6 +72,24 @@ Run PyQS workers for the given queues
         action="store",
     )
 
+    parser.add_argument(
+        "--interval",
+        dest="interval",
+        type=float,
+        default=0.01,
+        help='interval',
+        action="store",
+    )
+
+    parser.add_argument(
+        "--batchsize",
+        dest="batchsize",
+        type=int,
+        default=10,
+        help='batchsize',
+        action="store",
+    )
+
     args = parser.parse_args()
 
     _main(queue_prefixes=args.queues,
@@ -79,13 +97,15 @@ Run PyQS workers for the given queues
           logging_level=args.logging_level,
           region=args.region,
           access_key_id=args.access_key_id,
-          secret_access_key=args.secret_access_key
+          secret_access_key=args.secret_access_key,
+          interval=args.interval,
+          batchsize=args.batchsize
           )
 
 
-def _main(queue_prefixes, concurrency=5, logging_level="WARN", region='us-east-1', access_key_id=None, secret_access_key=None):
+def _main(queue_prefixes, concurrency=5, logging_level="WARN", region='us-east-1', access_key_id=None, secret_access_key=None, interval=1, batchsize=10):
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
     logger.info("Starting PyQS version {}".format(__version__))
-    manager = ManagerWorker(queue_prefixes, concurrency, region=region, access_key_id=access_key_id, secret_access_key=secret_access_key)
+    manager = ManagerWorker(queue_prefixes, concurrency, interval, batchsize, region=region, access_key_id=access_key_id, secret_access_key=secret_access_key)
     manager.start()
     manager.sleep()
