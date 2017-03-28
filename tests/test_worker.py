@@ -40,18 +40,19 @@ def test_worker_fills_internal_queue():
     queue.write(message)
 
     internal_queue = Queue()
-    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
-    worker.read_message()
+    for batch_size in [-1, 0, 1, 10, 100]:
+        worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+        worker.read_message()
 
-    packed_message = internal_queue.get(timeout=1)
-    found_message_body = decode_message(packed_message['message'])
-    found_message_body.should.equal({
-        'task': 'tests.tasks.index_incrementer',
-        'args': [],
-        'kwargs': {
-            'message': 'Test message',
-        },
-    })
+        packed_message = internal_queue.get(timeout=1)
+        found_message_body = decode_message(packed_message['message'])
+        found_message_body.should.equal({
+            'task': 'tests.tasks.index_incrementer',
+            'args': [],
+            'kwargs': {
+                'message': 'Test message',
+            },
+        })
 
 
 @mock_sqs
