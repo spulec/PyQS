@@ -1,6 +1,13 @@
 Changelog
 ---------
 
+0.0.19
+~~~~~~
+
+- Add ability to run with tunable BATCHSIZE and INTERVAL. Thanks to @masayang
+- Add ability to create tasks with a visibility delay.  Thanks to @joshbuddy
+- Add ability to create tasks with a custom function location, allowing cross project tasks
+
 0.0.18
 ~~~~~~
 
