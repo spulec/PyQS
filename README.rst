@@ -58,6 +58,16 @@ name. For example the following function lives in ``email/tasks.py``.
 
 This would show up in the ``email.tasks.send_email`` queue.
 
+You can also specify the function path if you want to reference a function in a different project:
+
+.. code:: python
+
+    @task(custom_function_path="foo.bar.send_email")
+    # This references function send_email in foo/bar.py instead of email/tasks.py
+    def send_email(subject):
+        pass
+
+
 Reading Tasks
 ~~~~~~~~~~~~~
 
