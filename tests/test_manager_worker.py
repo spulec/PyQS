@@ -20,7 +20,7 @@ def test_manager_worker_create_proper_children_workers():
     conn = boto.connect_sqs()
     conn.create_queue("email")
 
-    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=3)
+    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=3, interval=2, batchsize=10)
 
     len(manager.reader_children).should.equal(1)
     len(manager.worker_children).should.equal(3)
@@ -35,7 +35,7 @@ def test_manager_worker_with_queue_prefix():
     conn.create_queue("email.foobar")
     conn.create_queue("email.baz")
 
-    manager = ManagerWorker(queue_prefixes=['email.*'], worker_concurrency=1)
+    manager = ManagerWorker(queue_prefixes=['email.*'], worker_concurrency=1, interval=1, batchsize=10)
 
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children
@@ -54,7 +54,7 @@ def test_manager_start_and_stop():
     conn = boto.connect_sqs()
     conn.create_queue("email")
 
-    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=2)
+    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=2, interval=1, batchsize=10)
 
     len(manager.worker_children).should.equal(2)
 
@@ -80,7 +80,7 @@ def test_main_method(ManagerWorker):
     """
     _main(["email1", "email2"], concurrency=2)
 
-    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, region='us-east-1', secret_access_key=None, access_key_id=None)
+    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, 1, 10, region='us-east-1', secret_access_key=None, access_key_id=None)
     ManagerWorker.return_value.start.assert_called_once_with()
 
 
@@ -93,6 +93,8 @@ def test_real_main_method(ArgumentParser, _main):
     """
     ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3,
                                                                queues=["email1"],
+                                                               interval=1,
+                                                               batchsize=10,
                                                                logging_level="WARN",
                                                                region='us-east-1',
                                                                access_key_id=None,
@@ -101,6 +103,8 @@ def test_real_main_method(ArgumentParser, _main):
 
     _main.assert_called_once_with(queue_prefixes=['email1'],
                                   concurrency=3,
+                                  interval=1,
+                                  batchsize=10,
                                   logging_level="WARN",
                                   region='us-east-1',
                                   access_key_id=None,
@@ -118,7 +122,7 @@ def test_master_spawns_worker_processes():
     conn.create_queue("tester")
 
     # Setup Manager
-    manager = ManagerWorker(["tester"], 1)
+    manager = ManagerWorker(["tester"], 1, 1, 10)
     manager.start()
 
     # Check Workers
@@ -143,7 +147,7 @@ def test_master_replaces_reader_processes():
     conn.create_queue("tester")
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
     manager.start()
 
     # Get Reader PID
@@ -177,7 +181,7 @@ def test_master_counts_processes():
     conn.create_queue("tester")
 
     # Setup Manager
-    manager = ManagerWorker(["tester"], 2)
+    manager = ManagerWorker(["tester"], 2, 1, 10)
     manager.start()
 
     # Check Workers
@@ -203,7 +207,7 @@ def test_master_replaces_worker_processes():
     conn.create_queue("tester")
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
     manager.start()
 
     # Get Worker PID
@@ -240,7 +244,7 @@ def test_master_handles_signals(sys):
         os.kill(os.getpid(), signal.SIGTERM)
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1)
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
     manager.process_counts = process_counts
     manager._graceful_shutdown = MagicMock()
 

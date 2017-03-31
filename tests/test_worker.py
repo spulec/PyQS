@@ -15,6 +15,9 @@ from pyqs.utils import decode_message
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
 
+BATCHSIZE = 10
+INTERVAL = 1
+
 
 @mock_sqs
 def test_worker_fills_internal_queue():
@@ -37,18 +40,19 @@ def test_worker_fills_internal_queue():
     queue.write(message)
 
     internal_queue = Queue()
-    worker = ReadWorker(queue, internal_queue)
-    worker.read_message()
+    for batch_size in [-1, 0, 1, 10, 100]:
+        worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+        worker.read_message()
 
-    packed_message = internal_queue.get(timeout=1)
-    found_message_body = decode_message(packed_message['message'])
-    found_message_body.should.equal({
-        'task': 'tests.tasks.index_incrementer',
-        'args': [],
-        'kwargs': {
-            'message': 'Test message',
-        },
-    })
+        packed_message = internal_queue.get(timeout=1)
+        found_message_body = decode_message(packed_message['message'])
+        found_message_body.should.equal({
+            'task': 'tests.tasks.index_incrementer',
+            'args': [],
+            'kwargs': {
+                'message': 'Test message',
+            },
+        })
 
 
 @mock_sqs
@@ -73,7 +77,7 @@ def test_worker_fills_internal_queue_only_until_maximum_queue_size():
         queue.write(message)
 
     internal_queue = Queue(maxsize=2)
-    worker = ReadWorker(queue, internal_queue)
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
     worker.read_message()
 
     # The internal queue should only have two messages on it
@@ -102,7 +106,7 @@ def test_worker_fills_internal_queue_from_celery_task():
     queue.write(message)
 
     internal_queue = Queue()
-    worker = ReadWorker(queue, internal_queue)
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
     worker.read_message()
 
     packed_message = internal_queue.get(timeout=1)
@@ -144,7 +148,7 @@ def test_worker_processes_tasks_from_internal_queue():
     internal_queue.put({"message": message, "queue": queue.id, "start_time": time.time(), "timeout": 30})
 
     # Process message
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker.process_message()
 
     task_results.should.equal(['Test message'])
@@ -182,7 +186,7 @@ def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
 
     # Run Reader
     internal_queue = Queue(maxsize=1)
-    worker = ReadWorker(queue, internal_queue)
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
     worker.read_message()
 
     # Check log messages
@@ -221,7 +225,7 @@ def test_worker_processes_tasks_and_logs_correctly():
     internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # Process message
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker.process_message()
 
     # Check output
@@ -260,7 +264,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # Process message
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker.process_message()
 
     # Check output
@@ -277,7 +281,7 @@ def test_worker_processes_empty_queue():
     """
     internal_queue = Queue()
 
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker.process_message()
 
 
@@ -321,7 +325,7 @@ def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
         raise Exception("Called")
 
     # When I have a parent process, and shutdown is not set
-    worker = ReadWorker(queue, "foo")
+    worker = ReadWorker(queue, "foo", BATCHSIZE)
     worker.read_message = read_message
 
     # Then read_message() is reached
@@ -342,7 +346,7 @@ def test_read_worker_with_parent_process_alive_and_should_exit(os):
     os.getppid.return_value = 1234
 
     # When I have a parent process, and shutdown is set
-    worker = ReadWorker(queue, "foo")
+    worker = ReadWorker(queue, "foo", BATCHSIZE)
     worker.read_message = Mock()
     worker.shutdown()
 
@@ -364,7 +368,7 @@ def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
     os.getppid.return_value = 1
 
     # When I have no parent process, and shutdown is not set
-    worker = ReadWorker(queue, "foo")
+    worker = ReadWorker(queue, "foo", BATCHSIZE)
     worker.read_message = Mock()
 
     # Then I return from run()
@@ -385,7 +389,7 @@ def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
         raise Exception("Called")
 
     # When I have a parent process, and shutdown is not set
-    worker = ProcessWorker("foo")
+    worker = ProcessWorker("foo", INTERVAL)
     worker.process_message = process_message
 
     # Then process_message() is reached
@@ -402,7 +406,7 @@ def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
     os.getppid.return_value = 1
 
     # When I have no parent process, and shutdown is not set
-    worker = ProcessWorker("foo")
+    worker = ProcessWorker("foo", INTERVAL)
     worker.process_message = Mock()
 
     # Then I return from run()
@@ -419,7 +423,7 @@ def test_process_worker_with_parent_process_alive_and_should_exit(os):
     os.getppid.return_value = 1234
 
     # When I have a parent process, and shutdown is set
-    worker = ProcessWorker("foo")
+    worker = ProcessWorker("foo", INTERVAL)
     worker.process_message = Mock()
     worker.shutdown()
 
@@ -455,7 +459,7 @@ def test_worker_processes_shuts_down_after_processing_its_maximum_number_of_mess
     internal_queue.put({"queue": queue.id, "message": message, "start_time": time.time(), "timeout": 30})
 
     # When I Process messages
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker._messages_to_process_before_shutdown = 2
 
     # Then I return from run()
@@ -497,7 +501,7 @@ def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
     internal_queue.put({"queue": queue.id, "message": message, "start_time": 0, "timeout": 0})
 
     # When I process the message
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker.process_message()
 
     # Then I get an error about exceeding the visibility timeout
@@ -540,7 +544,7 @@ def test_worker_processes_only_increases_processed_counter_if_a_message_was_proc
     thread.start()
 
     # When I Process messages
-    worker = ProcessWorker(internal_queue)
+    worker = ProcessWorker(internal_queue, INTERVAL)
     worker._messages_to_process_before_shutdown = 2
 
     # Then I return from run() after processing 2 messages
