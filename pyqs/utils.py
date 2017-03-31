@@ -22,5 +22,7 @@ def decode_celery_message(json_task):
     return pickle.loads(message)
 
 
-def function_to_import_path(function):
+def function_to_import_path(function, override=False):
+    if override:
+        return function
     return "{}.{}".format(function.__module__, function.func_name)

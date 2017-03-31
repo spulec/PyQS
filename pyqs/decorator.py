@@ -22,8 +22,8 @@ def get_or_create_queue(queue_name):
         return conn.create_queue(queue_name)
 
 
-def task_delayer(func_to_delay, queue_name, delay_seconds=None):
-    function_path = function_to_import_path(func_to_delay)
+def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
+    function_path = function_to_import_path(func_to_delay, override=override)
 
     if not queue_name:
         # If no queue specified, use the function_path for the queue
@@ -47,11 +47,17 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None):
 
 
 class task(object):
-    def __init__(self, queue=None, delay_seconds=None):
+    def __init__(self, queue=None, delay_seconds=None, custom_function_path=None):
         self.queue_name = queue
         self.delay_seconds = delay_seconds
+        self.function_path = custom_function_path
 
     def __call__(self, *args, **kwargs):
         func_to_wrap = args[0]
-        func_to_wrap.delay = task_delayer(func_to_wrap, self.queue_name, self.delay_seconds)
+        function = func_to_wrap
+        override = False
+        if self.function_path:
+            override = True
+            function = self.function_path
+        func_to_wrap.delay = task_delayer(function, self.queue_name, self.delay_seconds, override=override)
         return func_to_wrap

@@ -19,3 +19,8 @@ def send_email(subject, message):
 @task(queue='delayed', delay_seconds=5)
 def delayed_task():
     pass
+
+
+@task(custom_function_path="custom_function.path", queue="foobar")
+def custom_path_task():
+    pass

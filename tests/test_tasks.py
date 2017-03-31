@@ -3,7 +3,7 @@ import json
 import boto
 from moto import mock_sqs
 
-from .tasks import index_incrementer, send_email, delayed_task
+from .tasks import index_incrementer, send_email, delayed_task, custom_path_task
 
 
 @mock_sqs()
@@ -65,3 +65,26 @@ def test_message_delay():
     queue = all_queues[0]
     queue.name.should.equal("delayed")
     queue.count().should.equal(0)
+
+
+@mock_sqs()
+def test_custom_function_path():
+    """
+    Test delaying task with custom function path
+    """
+    conn = boto.connect_sqs()
+
+    custom_path_task.delay()
+
+    all_queues = conn.get_all_queues()
+    queue = all_queues[0]
+    queue.name.should.equal("foobar")
+    queue.count().should.equal(1)
+
+    message = queue.get_messages()[0].get_body()
+    message_dict = json.loads(message)
+    message_dict.should.equal({
+        'task': 'custom_function.path',
+        'args': [],
+        'kwargs': {},
+    })
