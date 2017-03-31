@@ -76,8 +76,8 @@ Run PyQS workers for the given queues
         "--interval",
         dest="interval",
         type=float,
-        default=0.01,
-        help='interval',
+        default=0.0,
+        help='Time waited by a worker after processesing a message.',
         action="store",
     )
 
@@ -86,7 +86,7 @@ Run PyQS workers for the given queues
         dest="batchsize",
         type=int,
         default=10,
-        help='batchsize',
+        help='How many messages to download at a time from SQS.',
         action="store",
     )
 

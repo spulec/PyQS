@@ -10,13 +10,13 @@ import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
 from mock import patch, Mock
-from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker
+from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker, MESSAGE_DOWNLOAD_BATCH_SIZE
 from pyqs.utils import decode_message
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
 
 BATCHSIZE = 10
-INTERVAL = 1
+INTERVAL = 0.1
 
 
 @mock_sqs
@@ -40,19 +40,18 @@ def test_worker_fills_internal_queue():
     queue.write(message)
 
     internal_queue = Queue()
-    for batch_size in [-1, 0, 1, 10, 100]:
-        worker = ReadWorker(queue, internal_queue, BATCHSIZE)
-        worker.read_message()
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+    worker.read_message()
 
-        packed_message = internal_queue.get(timeout=1)
-        found_message_body = decode_message(packed_message['message'])
-        found_message_body.should.equal({
-            'task': 'tests.tasks.index_incrementer',
-            'args': [],
-            'kwargs': {
-                'message': 'Test message',
-            },
-        })
+    packed_message = internal_queue.get(timeout=1)
+    found_message_body = decode_message(packed_message['message'])
+    found_message_body.should.equal({
+        'task': 'tests.tasks.index_incrementer',
+        'args': [],
+        'kwargs': {
+            'message': 'Test message',
+        },
+    })
 
 
 @mock_sqs
@@ -549,3 +548,31 @@ def test_worker_processes_only_increases_processed_counter_if_a_message_was_proc
 
     # Then I return from run() after processing 2 messages
     worker.run().should.be.none
+
+
+@mock_sqs
+def test_read_worker_negative_batch_size():
+    """
+    Test read workers with negative batch sizes
+    """
+    BATCHSIZE = -1
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    internal_queue = Queue()
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+    worker.batchsize.should.equal(1)
+
+
+@mock_sqs
+def test_read_worker_to_large_batch_size():
+    """
+    Test read workers with too large of a batch size
+    """
+    BATCHSIZE = 10000
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    internal_queue = Queue()
+    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+    worker.batchsize.should.equal(MESSAGE_DOWNLOAD_BATCH_SIZE)
