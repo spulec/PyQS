@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.0.21
+~~~~~~
+
+- Add ability to tune ``PREFETCH_MULTIPLIER`` with ``--prefetch-multiplier``.
+
 0.0.20
 ~~~~~~
 
