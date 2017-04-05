@@ -80,7 +80,7 @@ def test_main_method(ManagerWorker):
     """
     _main(["email1", "email2"], concurrency=2)
 
-    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, 1, 10, region='us-east-1', secret_access_key=None, access_key_id=None)
+    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, 1, 10, prefetch_multiplier=2, region='us-east-1', secret_access_key=None, access_key_id=None)
     ManagerWorker.return_value.start.assert_called_once_with()
 
 
@@ -97,6 +97,7 @@ def test_real_main_method(ArgumentParser, _main):
                                                                batchsize=10,
                                                                logging_level="WARN",
                                                                region='us-east-1',
+                                                               prefetch_multiplier=2,
                                                                access_key_id=None,
                                                                secret_access_key=None)
     main()
@@ -107,6 +108,7 @@ def test_real_main_method(ArgumentParser, _main):
                                   batchsize=10,
                                   logging_level="WARN",
                                   region='us-east-1',
+                                  prefetch_multiplier=2,
                                   access_key_id=None,
                                   secret_access_key=None)
 

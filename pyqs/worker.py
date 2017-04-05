@@ -17,7 +17,6 @@ import boto
 
 from pyqs.utils import decode_message
 
-PREFETCH_MULTIPLIER = 2
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
@@ -191,7 +190,7 @@ class ProcessWorker(BaseWorker):
 
 class ManagerWorker(object):
 
-    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize, region='us-east-1', access_key_id=None, secret_access_key=None):
+    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize, prefetch_multiplier=2, region='us-east-1', access_key_id=None, secret_access_key=None):
         self.connection_args = {
             "region": region,
             "access_key_id": access_key_id,
@@ -203,6 +202,7 @@ class ManagerWorker(object):
         if batchsize <= 0:
             self.batchsize = 1
         self.interval = interval
+        self.prefetch_multiplier = prefetch_multiplier
         self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -244,7 +244,7 @@ class ManagerWorker(object):
         return matching_queues
 
     def setup_internal_queue(self, worker_concurrency):
-        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER * self.batchsize)
+        self.internal_queue = Queue(worker_concurrency * self.prefetch_multiplier * self.batchsize)
 
     def start(self):
         for child in self.reader_children:
