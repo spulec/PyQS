@@ -58,10 +58,6 @@ class ReadWorker(BaseWorker):
         self.visibility_timeout = self.sqs_queue.get_timeout()
         self.internal_queue = internal_queue
         self.batchsize = batchsize
-        if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
-            self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
-        if batchsize <= 0:
-            self.batchsize = 1
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
@@ -113,7 +109,6 @@ class ProcessWorker(BaseWorker):
         self.internal_queue = internal_queue
         self.interval = interval
         self._messages_to_process_before_shutdown = 100
-        
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
@@ -202,8 +197,12 @@ class ManagerWorker(object):
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
         }
-        self.interval = interval
         self.batchsize = batchsize
+        if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
+            self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
+        if batchsize <= 0:
+            self.batchsize = 1
+        self.interval = interval
         self.load_queue_prefixes(queue_prefixes)
         self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -245,7 +244,7 @@ class ManagerWorker(object):
         return matching_queues
 
     def setup_internal_queue(self, worker_concurrency):
-        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER * MESSAGE_DOWNLOAD_BATCH_SIZE)
+        self.internal_queue = Queue(worker_concurrency * PREFETCH_MULTIPLIER * self.batchsize)
 
     def start(self):
         for child in self.reader_children:

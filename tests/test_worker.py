@@ -10,7 +10,7 @@ import boto
 from boto.sqs.message import Message
 from moto import mock_sqs
 from mock import patch, Mock
-from pyqs.worker import ReadWorker, ProcessWorker, BaseWorker, MESSAGE_DOWNLOAD_BATCH_SIZE
+from pyqs.worker import ManagerWorker, ReadWorker, ProcessWorker, BaseWorker, MESSAGE_DOWNLOAD_BATCH_SIZE
 from pyqs.utils import decode_message
 from tests.tasks import task_results
 from tests.utils import MockLoggingHandler
@@ -551,28 +551,32 @@ def test_worker_processes_only_increases_processed_counter_if_a_message_was_proc
 
 
 @mock_sqs
-def test_read_worker_negative_batch_size():
+def test_worker_negative_batch_size():
     """
-    Test read workers with negative batch sizes
+    Test workers with negative batch sizes
     """
     BATCHSIZE = -1
+    CONCURRENCY = 1
+    QUEUE_PREFIX = "tester"
+    INTERVAL = 0.0
     conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
+    conn.create_queue("tester")
 
-    internal_queue = Queue()
-    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+    worker = ManagerWorker(QUEUE_PREFIX, CONCURRENCY, INTERVAL, BATCHSIZE)
     worker.batchsize.should.equal(1)
 
 
 @mock_sqs
-def test_read_worker_to_large_batch_size():
+def test_worker_to_large_batch_size():
     """
-    Test read workers with too large of a batch size
+    Test workers with too large of a batch size
     """
     BATCHSIZE = 10000
+    CONCURRENCY = 1
+    QUEUE_PREFIX = "tester"
+    INTERVAL = 0.0
     conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
+    conn.create_queue("tester")
 
-    internal_queue = Queue()
-    worker = ReadWorker(queue, internal_queue, BATCHSIZE)
+    worker = ManagerWorker(QUEUE_PREFIX, CONCURRENCY, INTERVAL, BATCHSIZE)
     worker.batchsize.should.equal(MESSAGE_DOWNLOAD_BATCH_SIZE)

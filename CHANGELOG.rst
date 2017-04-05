@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.0.20
+~~~~~~
+
+- Respect ``--batch-size`` when sizing internal queue on ManagerWorker
+
 0.0.19
 ~~~~~~
 
