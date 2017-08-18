@@ -14,7 +14,7 @@ def decode_message(message):
 
 
 def decode_celery_message(json_task):
-    message = base64.decodestring(json_task['body'])
+    message = base64.b64decode(json_task['body'])
     try:
         return json.loads(message)
     except ValueError:
@@ -25,4 +25,4 @@ def decode_celery_message(json_task):
 def function_to_import_path(function, override=False):
     if override:
         return function
-    return "{}.{}".format(function.__module__, function.func_name)
+    return "{}.{}".format(function.__module__, function.__name__)

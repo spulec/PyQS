@@ -1,5 +1,10 @@
 from pyqs import task
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 task_results = []
 
 
