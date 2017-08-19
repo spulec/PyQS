@@ -36,6 +36,6 @@ setup(
     install_requires=[
         'boto>=2.32.1'
     ],
-    packages=filter(lambda n: not n.startswith('tests'), find_packages()),
+    packages=[n for n in find_packages() if not n.startswith('tests')],
     include_package_data=True,
 )

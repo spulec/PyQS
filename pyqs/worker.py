@@ -11,7 +11,10 @@ import traceback
 import time
 
 from multiprocessing import Event, Process, Queue
-from Queue import Empty, Full
+try:
+    from queue import Empty, Full
+except ImportError:
+    from Queue import Empty, Full
 
 import boto
 

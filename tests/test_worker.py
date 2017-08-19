@@ -4,7 +4,10 @@ import time
 import threading
 
 from multiprocessing import Queue
-from Queue import Empty
+try:
+    from queue import Empty
+except ImportError:
+    from Queue import Empty
 
 import boto
 from boto.sqs.message import Message
@@ -228,7 +231,8 @@ def test_worker_processes_tasks_and_logs_correctly():
     worker.process_message()
 
     # Check output
-    expected_result = u"Processed task tests.tasks.index_incrementer in 0.0000 seconds with args: [] and kwargs: {u'message': u'Test message'}"
+    kwargs = json.loads(body)['kwargs']
+    expected_result = u"Processed task tests.tasks.index_incrementer in 0.0000 seconds with args: [] and kwargs: {}".format(kwargs)
     logger.handlers[0].messages['info'].should.equal([expected_result])
 
 
@@ -267,7 +271,8 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     worker.process_message()
 
     # Check output
-    msg1 = "Task tests.tasks.index_incrementer raised error in 0.0000 seconds: with args: [] and kwargs: {u'message': 23}: Traceback (most recent call last)"  # noqa
+    kwargs = json.loads(body)['kwargs']
+    msg1 = "Task tests.tasks.index_incrementer raised error in 0.0000 seconds: with args: [] and kwargs: {}: Traceback (most recent call last)".format(kwargs)  # noqa
     logger.handlers[0].messages['error'][0].lower().should.contain(msg1.lower())
     msg2 = 'raise ValueError("Need to be given basestring, was given {}".format(message))\nValueError: Need to be given basestring, was given 23'  # noqa
     logger.handlers[0].messages['error'][0].lower().should.contain(msg2.lower())
@@ -504,7 +509,8 @@ def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
     worker.process_message()
 
     # Then I get an error about exceeding the visibility timeout
-    msg1 = "Discarding task tests.tasks.index_incrementer with args: [] and kwargs: {u'message': 23} due to exceeding visibility timeout"  # noqa
+    kwargs = json.loads(body)['kwargs']
+    msg1 = "Discarding task tests.tasks.index_incrementer with args: [] and kwargs: {} due to exceeding visibility timeout".format(kwargs)  # noqa
     logger.handlers[0].messages['warning'][0].lower().should.contain(msg1.lower())
 
 
