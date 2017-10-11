@@ -32,6 +32,11 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
     def wrapper(*args, **kwargs):
         queue = get_or_create_queue(queue_name)
 
+        _delay_seconds = delay_seconds
+        if '_delay_seconds' in kwargs:
+            _delay_seconds = kwargs['_delay_seconds']
+            del kwargs['_delay_seconds']
+
         logger.info("Delaying task %s: %s, %s", function_path, args, kwargs)
         message_dict = {
             'task': function_path,
@@ -41,7 +46,7 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
 
         message = Message()
         message.set_body(json.dumps(message_dict))
-        queue.write(message, delay_seconds)
+        queue.write(message, _delay_seconds)
 
     return wrapper
 
