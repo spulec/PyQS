@@ -52,9 +52,8 @@ def test_specified_queue():
 @mock_sqs()
 def test_message_delay():
     """
-    Test delaying task to specific queue
+    Test delaying task with delay_seconds
     """
-
     conn = boto.connect_sqs()
 
     delayed_task.delay()
@@ -65,6 +64,40 @@ def test_message_delay():
     queue = all_queues[0]
     queue.name.should.equal("delayed")
     queue.count().should.equal(0)
+
+
+@mock_sqs()
+def test_message_add_delay():
+    """
+    Test configuring the delay time of a task
+    """
+    conn = boto.connect_sqs()
+
+    send_email.delay("email subject", _delay_seconds=5)
+
+    all_queues = conn.get_all_queues()
+    len(all_queues).should.equal(1)
+
+    queue = all_queues[0]
+    queue.name.should.equal("email")
+    queue.count().should.equal(0)
+
+
+@mock_sqs()
+def test_message_no_delay():
+    """
+    Test removing the delay time of a task
+    """
+    conn = boto.connect_sqs()
+
+    delayed_task.delay(_delay_seconds=0)
+
+    all_queues = conn.get_all_queues()
+    len(all_queues).should.equal(1)
+
+    queue = all_queues[0]
+    queue.name.should.equal("delayed")
+    queue.count().should.equal(1)
 
 
 @mock_sqs()
