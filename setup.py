@@ -26,7 +26,7 @@ setup(
     description='A simple task-queue for SQS.',
     long_description=readme + '\n\n' + changelog,
     author='Steve Pulec',
-    author_email='spulec@gmail',
+    author_email='spulec@gmail.com',
     url='https://github.com/spulec/pyqs',
     entry_points={
         'console_scripts': [
