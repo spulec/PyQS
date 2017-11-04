@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.0.22
+~~~~~~
+
+- Fix Python 3 support
+- Allow overwriting the `delay_seconds` attibute at call time
+
 0.0.21
 ~~~~~~
 
