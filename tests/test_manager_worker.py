@@ -12,7 +12,7 @@ from moto import mock_sqs
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker, _get_region
-from tests.utils import MockLoggingHandler, ThreadWithReturnValue
+from tests.utils import MockLoggingHandler, ThreadWithReturnValue2, ThreadWithReturnValue3
 
 
 @mock_sqs
@@ -324,14 +324,7 @@ def test_master_shuts_down_slow_processes():
     for _ in range(100):
         queue.write(message)
 
-    # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=0, interval=0.0, batchsize=1)
-    manager.start()
-
-    # Give our processes a moment to start
-    time.sleep(1)
-
-    # Setup a thread to watch reader worker
+    # Create function to watch and kill stuck processes
     def sleep_and_kill(pid):
         import os
         import signal
@@ -346,8 +339,22 @@ def test_master_shuts_down_slow_processes():
             # Return that we needed to kill the process
             return 0
 
-    thread = ThreadWithReturnValue(target=sleep_and_kill, args=(manager.reader_children[0].pid,))
-    thread.daemon = True
+    # Setup Manager
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=0, interval=0.0, batchsize=1)
+    manager.start()
+
+    # Give our processes a moment to start
+    time.sleep(1)
+
+    # Setup Threading watcher
+    try:
+        # Try Python 2 Style
+        thread = ThreadWithReturnValue2(target=sleep_and_kill, args=(manager.reader_children[0].pid,))
+        thread.daemon = True
+    except TypeError:
+        # Use Python 3 Style
+        thread = ThreadWithReturnValue3(target=sleep_and_kill, args=(manager.reader_children[0].pid,), daemon=True)
+
     thread.start()
 
     # Stop the Master Process

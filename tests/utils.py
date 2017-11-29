@@ -26,7 +26,7 @@ class MockLoggingHandler(logging.Handler):
         }
 
 
-class ThreadWithReturnValue(Thread):
+class ThreadWithReturnValue2(Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, Verbose=None):
         Thread.__init__(self, group, target, name, args, kwargs, Verbose)
         self._return = None
@@ -34,6 +34,20 @@ class ThreadWithReturnValue(Thread):
     def run(self):
         if self._Thread__target is not None:
             self._return = self._Thread__target(*self._Thread__args, **self._Thread__kwargs)
+
+    def join(self):
+        Thread.join(self)
+        return self._return
+
+
+class ThreadWithReturnValue3(Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, daemon=None):
+        Thread.__init__(self, group, target, name, args, kwargs, daemon=daemon)
+        self._return = None
+
+    def run(self):
+        if self._target is not None:
+            self._return = self._target(*self._args, **self._kwargs)
 
     def join(self):
         Thread.join(self)
