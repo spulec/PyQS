@@ -1,15 +1,18 @@
+import boto
+import json
+import logging
 import os
 import signal
 import time
-import boto
-import logging
+
+from boto.sqs.message import Message
 
 from mock import patch, Mock, MagicMock
 from moto import mock_sqs
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker, _get_region
-from tests.utils import MockLoggingHandler
+from tests.utils import MockLoggingHandler, ThreadWithReturnValue
 
 
 @mock_sqs
@@ -288,3 +291,69 @@ def test_region_from_string_that_is_none():
 
     region = _get_region(region_name)
     region.should.be.none
+
+
+@mock_sqs
+def test_master_shuts_down_slow_processes():
+    """
+    Test managing process properly sends signals to busy workers
+    """
+    # For debugging test
+    import sys
+    logger = logging.getLogger("pyqs")
+    logger.setLevel(logging.DEBUG)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    logger.addHandler(stdout_handler)
+
+    # Setup SQS Queue
+    conn = boto.connect_sqs()
+    queue = conn.create_queue("tester")
+
+    # Add Slow tasks
+    message = Message()
+    body = json.dumps({
+        'task': 'tests.tasks.sleeper',
+        'args': [],
+        'kwargs': {
+            'message': 60,
+        },
+    })
+    message.set_body(body)
+
+    # Fill the queue (we need a lot of messages to trigger the bug)
+    for _ in range(100):
+        queue.write(message)
+
+    # Setup Manager
+    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=0, interval=0.0, batchsize=1)
+    manager.start()
+
+    # Give our processes a moment to start
+    time.sleep(1)
+
+    # Setup a thread to watch reader worker
+    def sleep_and_kill(pid):
+        import os
+        import signal
+        import time
+        time.sleep(2)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            # Return that we didn't need to kill the process
+            return 1
+        else:
+            # Return that we needed to kill the process
+            return 0
+
+    thread = ThreadWithReturnValue(target=sleep_and_kill, args=(manager.reader_children[0].pid,))
+    thread.daemon = True
+    thread.start()
+
+    # Stop the Master Process
+    manager.stop()
+
+    # Check if we had to kill the Reader Worker or it exited gracefully
+    return_value = thread.join()
+    if not return_value:
+        raise Exception("Reader Worker failed to quit!")

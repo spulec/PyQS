@@ -70,7 +70,6 @@ class ReadWorker(BaseWorker):
             self.read_message()
 
     def read_message(self):
-
         messages = self.sqs_queue.get_messages(self.batchsize, wait_time_seconds=LONG_POLLING_INTERVAL)
         logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.sqs_queue.name))  # noqa
         start = time.time()
