@@ -349,8 +349,11 @@ def test_read_worker_with_parent_process_alive_and_should_exit(os):
     # Setup PPID
     os.getppid.return_value = 1234
 
+    # Setup internal queue
+    q = Queue(1)
+
     # When I have a parent process, and shutdown is set
-    worker = ReadWorker(queue, "foo", BATCHSIZE)
+    worker = ReadWorker(queue, q, BATCHSIZE)
     worker.read_message = Mock()
     worker.shutdown()
 
@@ -371,8 +374,11 @@ def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
     # Setup PPID
     os.getppid.return_value = 1
 
+    # Setup internal queue
+    q = Queue(1)
+
     # When I have no parent process, and shutdown is not set
-    worker = ReadWorker(queue, "foo", BATCHSIZE)
+    worker = ReadWorker(queue, q, BATCHSIZE)
     worker.read_message = Mock()
 
     # Then I return from run()

@@ -68,6 +68,8 @@ class ReadWorker(BaseWorker):
         logger.info("Running ReadWorker: {}, pid: {}".format(self.sqs_queue.name, os.getpid()))
         while not self.should_exit.is_set() and self.parent_is_alive():
             self.read_message()
+        self.internal_queue.close()
+        self.internal_queue.cancel_join_thread()
 
     def read_message(self):
         messages = self.sqs_queue.get_messages(self.batchsize, wait_time_seconds=LONG_POLLING_INTERVAL)

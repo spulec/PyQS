@@ -18,9 +18,8 @@ def index_incrementer(message, extra=None):
 
 @task()
 def sleeper(message, extra=None):
-    # Something really slow
     import time
-    time.sleep(60)
+    time.sleep(message)
 
 
 @task(queue='email')
