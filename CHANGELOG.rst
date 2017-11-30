@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.0.23
+~~~~~~
+
+- Fix hanging Reader Workers during shutdown.
+
 0.0.22
 ~~~~~~
 
