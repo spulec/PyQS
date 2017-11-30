@@ -16,6 +16,12 @@ def index_incrementer(message, extra=None):
         raise ValueError("Need to be given basestring, was given {}".format(message))
 
 
+@task()
+def sleeper(message, extra=None):
+    import time
+    time.sleep(message)
+
+
 @task(queue='email')
 def send_email(subject, message):
     pass
