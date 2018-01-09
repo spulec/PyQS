@@ -11,11 +11,13 @@ logger = logging.getLogger("pyqs")
 
 def get_or_create_queue(queue_name):
     sqs = boto3.resource('sqs')
-
     try:
         queue = sqs.get_queue_by_name(QueueName=queue_name)
     except ClientError as e:
         if 'QueueDoesNotExist' == e.__class__.__name__:
+            queue = sqs.create_queue(QueueName=queue_name)
+        elif 'ClientError' == e.__class__.__name__:
+            # moto client :(
             queue = sqs.create_queue(QueueName=queue_name)
         else:
             raise(e)
