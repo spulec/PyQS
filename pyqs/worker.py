@@ -168,7 +168,6 @@ class ProcessWorker(BaseWorker):
         else:
             end_time = time.clock()
 
-            # self.conn.get_status('DeleteMessage', params, queue_id)
             boto3.resource('sqs').Message(queue_url, receipt_handle).delete()
             logger.info(
                 "Processed task {} in {:.4f} seconds with args: {} and kwargs: {}".format(
