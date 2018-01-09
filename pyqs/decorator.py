@@ -8,9 +8,10 @@ from .utils import function_to_import_path
 
 logger = logging.getLogger("pyqs")
 
+
 def get_or_create_queue(queue_name):
     sqs = boto3.resource('sqs')
-    print queue_name
+
     try:
         queue = sqs.get_queue_by_name(QueueName=queue_name)
     except ClientError as e:
@@ -28,7 +29,7 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
         # If no queue specified, use the function_path for the queue, be sure
         # to replace the dots with underscores, as dots are not accepted as
         # queue names :(
-        queue_name = function_path.replace('.','-')
+        queue_name = function_path.replace('.', '-')
 
     def wrapper(*args, **kwargs):
         queue = get_or_create_queue(queue_name)
