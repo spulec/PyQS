@@ -52,3 +52,8 @@ class ThreadWithReturnValue3(Thread):
     def join(self):
         Thread.join(self)
         return self._return
+
+
+class Struct:
+    def __init__(self, foo):
+        self.__dict__ = foo
