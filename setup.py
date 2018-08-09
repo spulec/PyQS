@@ -34,7 +34,7 @@ setup(
         ],
     },
     install_requires=[
-        'boto3==1.7.0'
+        'boto3>=1.7.0'
     ],
     packages=[n for n in find_packages() if not n.startswith('tests')],
     include_package_data=True,
