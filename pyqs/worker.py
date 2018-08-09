@@ -16,7 +16,7 @@ try:
 except ImportError:
     from Queue import Empty, Full
 
-import boto
+import boto3
 
 from pyqs.utils import decode_message
 
@@ -25,15 +25,8 @@ LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
 
 
-def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    return boto.connect_sqs(aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region=_get_region(region))
-
-
-def _get_region(region_name):
-    if region_name is not None:
-        for region in boto.sqs.regions():
-            if region.name == region_name:
-                return region
+def get_conn(region='us-east-1', access_key_id=None, secret_access_key=None):
+    return boto3.client("sqs", aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key, region_name=region)
 
 
 class BaseWorker(Process):
@@ -54,10 +47,17 @@ class BaseWorker(Process):
 
 class ReadWorker(BaseWorker):
 
-    def __init__(self, sqs_queue, internal_queue, batchsize, *args, **kwargs):
+    def __init__(self, queue_url, internal_queue, batchsize, connection_args=None, *args, **kwargs):
         super(ReadWorker, self).__init__(*args, **kwargs)
-        self.sqs_queue = sqs_queue
-        self.visibility_timeout = self.sqs_queue.get_timeout()
+        if connection_args is None:
+            connection_args = {}
+        self.connection_args = connection_args
+        self.conn = get_conn(**self.connection_args)
+        self.queue_url = queue_url
+
+        sqs_queue = self.conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+        self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
+
         self.internal_queue = internal_queue
         self.batchsize = batchsize
 
@@ -65,15 +65,19 @@ class ReadWorker(BaseWorker):
         # Set the child process to not receive any keyboard interrupts
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        logger.info("Running ReadWorker: {}, pid: {}".format(self.sqs_queue.name, os.getpid()))
+        logger.info("Running ReadWorker: {}, pid: {}".format(self.queue_url, os.getpid()))
         while not self.should_exit.is_set() and self.parent_is_alive():
             self.read_message()
         self.internal_queue.close()
         self.internal_queue.cancel_join_thread()
 
     def read_message(self):
-        messages = self.sqs_queue.get_messages(self.batchsize, wait_time_seconds=LONG_POLLING_INTERVAL)
-        logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.sqs_queue.name))  # noqa
+        messages = self.conn.receive_message(
+            QueueUrl=self.queue_url,
+            MaxNumberOfMessages=self.batchsize,
+            WaitTimeSeconds=LONG_POLLING_INTERVAL,
+        ).get('Messages', [])
+        logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.queue_url))  # noqa
         start = time.time()
         for message in messages:
             end = time.time()
@@ -87,7 +91,7 @@ class ReadWorker(BaseWorker):
             message_body = decode_message(message)
             try:
                 packed_message = {
-                    "queue": self.sqs_queue.id,
+                    "queue": self.queue_url,
                     "message": message,
                     "start_time": start,
                     "timeout": self.visibility_timeout,
@@ -98,7 +102,7 @@ class ReadWorker(BaseWorker):
                 logger.warning(msg)
                 continue
             else:
-                logger.debug("Message successfully added to internal queue from SQS queue {} with body: {}".format(self.sqs_queue.name, message_body))  # noqa
+                logger.debug("Message successfully added to internal queue from SQS queue {} with body: {}".format(self.queue_url, message_body))  # noqa
 
 
 class ProcessWorker(BaseWorker):
@@ -137,7 +141,7 @@ class ProcessWorker(BaseWorker):
             # Return False if we did not attempt to process any messages
             return False
         message = packed_message['message']
-        queue_id = packed_message['queue']
+        queue_url = packed_message['queue']
         fetch_time = packed_message['start_time']
         timeout = packed_message['timeout']
         message_body = decode_message(message)
@@ -179,8 +183,10 @@ class ProcessWorker(BaseWorker):
             return True
         else:
             end_time = time.clock()
-            params = {'ReceiptHandle': message.receipt_handle}
-            self.conn.get_status('DeleteMessage', params, queue_id)
+            self.conn.delete_message(
+                QueueUrl=queue_url,
+                ReceiptHandle=message['ReceiptHandle']
+            )
             logger.info(
                 "Processed task {} in {:.4f} seconds with args: {} and kwargs: {}".format(
                     full_task_path,
@@ -208,7 +214,7 @@ class ManagerWorker(object):
         self.interval = interval
         self.prefetch_multiplier = prefetch_multiplier
         self.load_queue_prefixes(queue_prefixes)
-        self.queues = self.get_queues_from_queue_prefixes(self.queue_prefixes)
+        self.queue_urls = self.get_queue_urls_from_queue_prefixes(self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
         self.reader_children = []
         self.worker_children = []
@@ -222,8 +228,8 @@ class ManagerWorker(object):
             self.register_shutdown_signal(SIG)
 
     def _initialize_reader_children(self):
-        for queue in self.queues:
-            self.reader_children.append(ReadWorker(queue, self.internal_queue, self.batchsize))
+        for queue_url in self.queue_urls:
+            self.reader_children.append(ReadWorker(queue_url, self.internal_queue, self.batchsize, connection_args=self.connection_args))
 
     def _initialize_worker_children(self, number):
         for index in range(number):
@@ -236,16 +242,17 @@ class ManagerWorker(object):
         for queue_prefix in queue_prefixes:
             logger.info("[Queue]\t{}".format(queue_prefix))
 
-    def get_queues_from_queue_prefixes(self, queue_prefixes):
-        all_queues = get_conn(**self.connection_args).get_all_queues()
-        matching_queues = []
+    def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
+        conn = get_conn(**self.connection_args)
+        queue_urls = conn.list_queues()['QueueUrls']
+        matching_urls = []
         for prefix in queue_prefixes:
-            matching_queues.extend([
-                queue for queue in all_queues if
-                fnmatch.fnmatch(queue.name, prefix)
+            matching_urls.extend([
+                queue_url for queue_url in queue_urls if
+                fnmatch.fnmatch(queue_url.rsplit("/", 1)[1], prefix)
             ])
-        logger.info("Found matching SQS Queues: {}".format([q.name for q in matching_queues]))
-        return matching_queues
+        logger.info("Found matching SQS Queues: {}".format(matching_urls))
+        return matching_urls
 
     def setup_internal_queue(self, worker_concurrency):
         self.internal_queue = Queue(worker_concurrency * self.prefetch_multiplier * self.batchsize)
@@ -303,9 +310,9 @@ class ManagerWorker(object):
         for index, reader in enumerate(self.reader_children):
             if not reader.is_alive():
                 logger.info("Reader Process {} is no longer responding, spawning a new reader.".format(reader.pid))
-                queue = reader.sqs_queue
+                queue_url = reader.queue_url
                 self.reader_children.pop(index)
-                worker = ReadWorker(queue, self.internal_queue, self.batchsize)
+                worker = ReadWorker(queue_url, self.internal_queue, self.batchsize, connection_args=self.connection_args)
                 worker.start()
                 self.reader_children.append(worker)
 

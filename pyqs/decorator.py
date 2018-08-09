@@ -1,25 +1,27 @@
 import json
 import logging
 
-import boto
-from boto.sqs.message import Message
+import boto3
+from botocore.exceptions import ClientError
 
 from .utils import function_to_import_path
 
 logger = logging.getLogger("pyqs")
 
-conn = None
-
 
 def get_or_create_queue(queue_name):
-    global conn
-    if conn is None:
-        conn = boto.connect_sqs()
-    queue = conn.get_queue(queue_name)
-    if queue:
-        return queue
-    else:
-        return conn.create_queue(queue_name)
+    region_name = boto3.session.Session().region_name
+    if not region_name:
+        region_name = 'us-east-1'
+
+    sqs = boto3.resource('sqs', region_name=region_name)
+    try:
+        return sqs.get_queue_by_name(QueueName=queue_name)
+    except ClientError as exc:
+        if exc.response['Error']['Code'] == 'AWS.SimpleQueueService.NonExistentQueue':
+            return sqs.create_queue(QueueName=queue_name)
+        else:
+            raise
 
 
 def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
@@ -44,9 +46,10 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
             'kwargs': kwargs,
         }
 
-        message = Message()
-        message.set_body(json.dumps(message_dict))
-        queue.write(message, _delay_seconds)
+        message = json.dumps(message_dict)
+        if _delay_seconds is None:
+            _delay_seconds = 0
+        queue.send_message(MessageBody=message, DelaySeconds=_delay_seconds)
 
     return wrapper
 

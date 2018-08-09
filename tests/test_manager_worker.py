@@ -1,27 +1,26 @@
-import boto
 import json
 import logging
 import os
 import signal
 import time
 
-from boto.sqs.message import Message
-
+import boto3
 from mock import patch, Mock, MagicMock
-from moto import mock_sqs
+from moto import mock_sqs, mock_sqs_deprecated
 
 from pyqs.main import main, _main
-from pyqs.worker import ManagerWorker, _get_region
+from pyqs.worker import ManagerWorker
 from tests.utils import MockLoggingHandler, ThreadWithReturnValue2, ThreadWithReturnValue3
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_manager_worker_create_proper_children_workers():
     """
     Test managing process creates multiple child workers
     """
-    conn = boto.connect_sqs()
-    conn.create_queue("email")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="email")
 
     manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=3, interval=2, batchsize=10)
 
@@ -30,32 +29,34 @@ def test_manager_worker_create_proper_children_workers():
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_manager_worker_with_queue_prefix():
     """
     Test managing process can find queues by prefix
     """
-    conn = boto.connect_sqs()
-    conn.create_queue("email.foobar")
-    conn.create_queue("email.baz")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="email.foobar")
+    conn.create_queue(QueueName="email.baz")
 
     manager = ManagerWorker(queue_prefixes=['email.*'], worker_concurrency=1, interval=1, batchsize=10)
 
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children
     # Pull all the read children and sort by name to make testing easier
-    sorted_children = sorted(children, key=lambda child: child.sqs_queue.name)
+    sorted_children = sorted(children, key=lambda child: child.queue_url)
 
-    sorted_children[0].sqs_queue.name.should.equal("email.baz")
-    sorted_children[1].sqs_queue.name.should.equal("email.foobar")
+    sorted_children[0].queue_url.should.equal("https://queue.amazonaws.com/123456789012/email.baz")
+    sorted_children[1].queue_url.should.equal("https://queue.amazonaws.com/123456789012/email.foobar")
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_manager_start_and_stop():
     """
     Test managing process can start and stop child processes
     """
-    conn = boto.connect_sqs()
-    conn.create_queue("email")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="email")
 
     manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=2, interval=1, batchsize=10)
 
@@ -77,6 +78,7 @@ def test_manager_start_and_stop():
 
 @patch("pyqs.main.ManagerWorker")
 @mock_sqs
+@mock_sqs_deprecated
 def test_main_method(ManagerWorker):
     """
     Test creation of manager process from _main method
@@ -90,6 +92,7 @@ def test_main_method(ManagerWorker):
 @patch("pyqs.main._main")
 @patch("pyqs.main.ArgumentParser")
 @mock_sqs
+@mock_sqs_deprecated
 def test_real_main_method(ArgumentParser, _main):
     """
     Test parsing of arguments from main method
@@ -117,14 +120,15 @@ def test_real_main_method(ArgumentParser, _main):
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_spawns_worker_processes():
     """
     Test managing process creates child workers
     """
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="tester")
 
     # Setup Manager
     manager = ManagerWorker(["tester"], 1, 1, 10)
@@ -142,14 +146,15 @@ def test_master_spawns_worker_processes():
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_replaces_reader_processes():
     """
     Test managing process replaces reader children
     """
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="tester")
 
     # Setup Manager
     manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
@@ -171,6 +176,7 @@ def test_master_replaces_reader_processes():
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_counts_processes():
     """
     Test managing process counts child processes
@@ -182,8 +188,8 @@ def test_master_counts_processes():
     logger.handlers.append(MockLoggingHandler())
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="tester")
 
     # Setup Manager
     manager = ManagerWorker(["tester"], 2, 1, 10)
@@ -203,13 +209,14 @@ def test_master_counts_processes():
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_replaces_worker_processes():
     """
     Test managing process replaces worker processes
     """
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="tester")
 
     # Setup Manager
     manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
@@ -232,14 +239,15 @@ def test_master_replaces_worker_processes():
 
 @mock_sqs
 @patch("pyqs.worker.sys")
+@mock_sqs_deprecated
 def test_master_handles_signals(sys):
     """
     Test managing process handles OS signals
     """
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    conn.create_queue(QueueName="tester")
 
     # Mock out sys.exit
     sys.exit = Mock()
@@ -261,39 +269,9 @@ def test_master_handles_signals(sys):
     sys.exit.assert_called_once_with(0)
 
 
-def test_region_from_string_that_exists():
-    """
-    Test region parsing from string for existing region
-    """
-
-    region_name = 'us-east-1'
-
-    region = _get_region(region_name)
-    region.shouldnt.be.none
-
-
-def test_region_from_string_that_does_not_exist():
-    """
-    Test region parsing from string for non-existant region
-    """
-
-    region_name = 'foobar'
-
-    region = _get_region(region_name)
-    region.should.be.none
-
-
-def test_region_from_string_that_is_none():
-    """
-    Test region parsing from empty string
-    """
-    region_name = None
-
-    region = _get_region(region_name)
-    region.should.be.none
-
-
+@patch("pyqs.worker.LONG_POLLING_INTERVAL", 3)
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_shuts_down_busy_read_workers():
     """
     Test managing process properly cleans up busy Reader Workers
@@ -306,23 +284,21 @@ def test_master_shuts_down_busy_read_workers():
     logger.addHandler(stdout_handler)
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    queue_url = conn.create_queue(QueueName="tester")['QueueUrl']
 
     # Add Slow tasks
-    message = Message()
-    body = json.dumps({
+    message = json.dumps({
         'task': 'tests.tasks.sleeper',
         'args': [],
         'kwargs': {
             'message': 5,
         },
     })
-    message.set_body(body)
 
     # Fill the queue (we need a lot of messages to trigger the bug)
     for _ in range(20):
-        queue.write(message)
+        conn.send_message(QueueUrl=queue_url, MessageBody=message)
 
     # Create function to watch and kill stuck processes
     def sleep_and_kill(pid):
@@ -368,6 +344,7 @@ def test_master_shuts_down_busy_read_workers():
 
 
 @mock_sqs
+@mock_sqs_deprecated
 def test_master_shuts_down_busy_process_workers():
     """
     Test managing process properly cleans up busy Process Workers
@@ -380,23 +357,21 @@ def test_master_shuts_down_busy_process_workers():
     logger.addHandler(stdout_handler)
 
     # Setup SQS Queue
-    conn = boto.connect_sqs()
-    queue = conn.create_queue("tester")
+    conn = boto3.client('sqs', region_name='us-east-1')
+    queue_url = conn.create_queue(QueueName="tester")['QueueUrl']
 
     # Add Slow tasks
-    message = Message()
-    body = json.dumps({
+    message = json.dumps({
         'task': 'tests.tasks.sleeper',
         'args': [],
         'kwargs': {
             'message': 5,
         },
     })
-    message.set_body(body)
 
     # Fill the queue (we need a lot of messages to trigger the bug)
     for _ in range(20):
-        queue.write(message)
+        conn.send_message(QueueUrl=queue_url, MessageBody=message)
 
     # Create function to watch and kill stuck processes
     def sleep_and_kill(pid):
