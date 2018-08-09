@@ -5,8 +5,8 @@ PyQS - Python task-queues for Amazon SQS |Build Status| |Coverage Status|
 
 PyQS is a simple task manager for SQS. It's goal is to provide a simple
 and reliable `celery <https://pypi.python.org/pypi/celery>`__-compatible
-interface to working with SQS. It uses ``boto`` under the hood to
-`authenticate <https://boto.readthedocs.org/en/latest/boto_config_tut.html>`__
+interface to working with SQS. It uses ``boto3`` under the hood to
+`authenticate <https://boto3.readthedocs.io/en/latest/guide/configuration.html>`__
 and talk to SQS.
 
 Installation
@@ -168,10 +168,10 @@ to SQS. It will read ``pickle`` and ``json`` serialized SQS messages
 UNIX. Due to the use of the ``os.getppid`` system call. This feature can
 probably be worked around if anyone actually wants windows support.
 
-**Boto:**
+**Boto3:**
 
 Currently PyQS only supports a few basic connection parameters being
-explicitly passed to the connection. Any work ``boto`` does to
+explicitly passed to the connection. Any work ``boto3`` does to
 transparently find connection credentials, such as IAM roles, will still
 work properly.
 
