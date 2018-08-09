@@ -4,17 +4,17 @@ import pickle
 
 
 def decode_message(message):
-    message_body = message.get_body()
+    message_body = message['Body']
     json_body = json.loads(message_body)
     if 'task' in message_body:
         return json_body
     else:
         # Fallback to processing celery messages
-        return decode_celery_message(json_body)
+        return decode_celery_message(json_body['body'])
 
 
 def decode_celery_message(json_task):
-    message = base64.b64decode(json_task['body'])
+    message = base64.b64decode(json_task)
     try:
         return json.loads(message)
     except ValueError:
