@@ -10,7 +10,11 @@ logger = logging.getLogger("pyqs")
 
 
 def get_or_create_queue(queue_name):
-    sqs = boto3.resource('sqs')
+    region_name = boto3.session.Session().region_name
+    if not region_name:
+        region_name = 'us-east-1'
+
+    sqs = boto3.resource('sqs', region_name=region_name)
     try:
         return sqs.get_queue_by_name(QueueName=queue_name)
     except ClientError as exc:

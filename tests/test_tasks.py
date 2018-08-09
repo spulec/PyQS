@@ -22,7 +22,7 @@ def test_basic_delay():
 
     queue_url = all_queues[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/tests.tasks.index_incrementer")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
     message = conn.receive_message(QueueUrl=queue_url)['Messages'][0]
@@ -49,7 +49,7 @@ def test_specified_queue():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/email")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
 
@@ -68,7 +68,7 @@ def test_message_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/delayed")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('0')
 
 
@@ -87,7 +87,7 @@ def test_message_add_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/email")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('0')
 
 
@@ -106,7 +106,7 @@ def test_message_no_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/delayed")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
 
@@ -124,7 +124,7 @@ def test_custom_function_path():
     len(queue_urls).should.equal(1)
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/foobar")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
     message = conn.receive_message(QueueUrl=queue_url)['Messages'][0]

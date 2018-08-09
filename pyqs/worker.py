@@ -55,7 +55,7 @@ class ReadWorker(BaseWorker):
         self.conn = get_conn(**self.connection_args)
         self.queue_url = queue_url
 
-        sqs_queue = self.conn.get_queue_attributes(QueueUrl=queue_url)['Attributes']
+        sqs_queue = self.conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
         self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
 
         self.internal_queue = internal_queue
