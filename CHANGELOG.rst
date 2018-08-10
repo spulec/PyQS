@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.1.1
+~~~~~
+
+- Fix KeyError on accounts without queues
+
 0.1.0
 ~~~~~
 
