@@ -17,7 +17,7 @@ def test_basic_delay():
 
     index_incrementer.delay("foobar", **{'extra': 'more'})
 
-    all_queues = conn.list_queues()['QueueUrls']
+    all_queues = conn.list_queues().get('QueueUrls', [])
     len(all_queues).should.equal(1)
 
     queue_url = all_queues[0]
@@ -44,7 +44,7 @@ def test_specified_queue():
 
     send_email.delay("email subject")
 
-    queue_urls = conn.list_queues()['QueueUrls']
+    queue_urls = conn.list_queues().get('QueueUrls', [])
     len(queue_urls).should.equal(1)
 
     queue_url = queue_urls[0]
@@ -63,7 +63,7 @@ def test_message_delay():
 
     delayed_task.delay()
 
-    queue_urls = conn.list_queues()['QueueUrls']
+    queue_urls = conn.list_queues().get('QueueUrls', [])
     len(queue_urls).should.equal(1)
 
     queue_url = queue_urls[0]
@@ -82,7 +82,7 @@ def test_message_add_delay():
 
     send_email.delay("email subject", _delay_seconds=5)
 
-    queue_urls = conn.list_queues()['QueueUrls']
+    queue_urls = conn.list_queues().get('QueueUrls', [])
     len(queue_urls).should.equal(1)
 
     queue_url = queue_urls[0]
@@ -101,7 +101,7 @@ def test_message_no_delay():
 
     delayed_task.delay(_delay_seconds=0)
 
-    queue_urls = conn.list_queues()['QueueUrls']
+    queue_urls = conn.list_queues().get('QueueUrls', [])
     len(queue_urls).should.equal(1)
 
     queue_url = queue_urls[0]
@@ -120,7 +120,7 @@ def test_custom_function_path():
 
     custom_path_task.delay()
 
-    queue_urls = conn.list_queues()['QueueUrls']
+    queue_urls = conn.list_queues().get('QueueUrls', [])
     len(queue_urls).should.equal(1)
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/foobar")

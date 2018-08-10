@@ -244,7 +244,7 @@ class ManagerWorker(object):
 
     def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
         conn = get_conn(**self.connection_args)
-        queue_urls = conn.list_queues()['QueueUrls']
+        queue_urls = conn.list_queues().get('QueueUrls', [])
         matching_urls = []
         for prefix in queue_prefixes:
             matching_urls.extend([
