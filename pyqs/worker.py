@@ -77,7 +77,10 @@ class ReadWorker(BaseWorker):
             MaxNumberOfMessages=self.batchsize,
             WaitTimeSeconds=LONG_POLLING_INTERVAL,
         ).get('Messages', [])
-        logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.queue_url))  # noqa
+
+        if len(messages) > 0:
+            logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.queue_url))  # noqa
+
         start = time.time()
         for message in messages:
             end = time.time()
