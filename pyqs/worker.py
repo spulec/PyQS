@@ -78,8 +78,7 @@ class ReadWorker(BaseWorker):
             WaitTimeSeconds=LONG_POLLING_INTERVAL,
         ).get('Messages', [])
 
-        if len(messages) > 0:
-            logger.info("Successfully got {} messages from SQS queue {}".format(len(messages), self.queue_url))  # noqa
+        logger.debug("Successfully got {} messages from SQS queue {}".format(len(messages), self.queue_url))  # noqa
 
         start = time.time()
         for message in messages:
