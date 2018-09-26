@@ -1,29 +1,6 @@
 import json
 import logging
-import boto3
 from flask import jsonify
-
-class SqsClient(object):
-    def __init__(self, queue):
-        self.queue = queue
-
-    def send(self, data):
-        sqs = boto3.resource('sqs')
-        queue = sqs.get_queue_by_name(QueueName=self.queue)
-
-        try:
-            message_string = json.dumps(data)
-        except (TypeError, AttributeError) as e:
-            logging.exception(f'{repr(data)} - {e}')
-
-        response = queue.send_message(
-            MessageBody=message_string,
-        )
-
-        message_id = response['MessageId']
-        logging.info(f'Submitted message {message_id} to queue {self.queue} successfully')
-
-        return message_id
 
 def construct_response(message, payload, status):
     body = {}
