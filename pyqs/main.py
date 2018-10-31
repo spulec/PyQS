@@ -41,7 +41,10 @@ Run PyQS workers for the given queues
         dest="logging_level",
         type=str,
         default="WARN",
-        help='Set logging level. This must be one of the python default logging levels',
+        help=(
+            'Set logging level. '
+            'This must be one of the python default logging levels'
+        ),
         action="store",
     )
 
@@ -95,7 +98,10 @@ Run PyQS workers for the given queues
         dest="prefetch_multiplier",
         type=int,
         default=2,
-        help='Multiplier on the size of the internal queue for prefetching SQS messages.',
+        help=(
+            'Multiplier on the size of the internal queue '
+            'for prefetching SQS messages.'
+        ),
         action="store",
     )
 
@@ -114,9 +120,18 @@ Run PyQS workers for the given queues
     )
 
 
-def _main(queue_prefixes, concurrency=5, logging_level="WARN", region='us-east-1', access_key_id=None, secret_access_key=None, interval=1, batchsize=10, prefetch_multiplier=2):
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
+def _main(queue_prefixes, concurrency=5, logging_level="WARN",
+          region='us-east-1', access_key_id=None, secret_access_key=None,
+          interval=1, batchsize=10, prefetch_multiplier=2):
+    logging.basicConfig(
+        format="[%(levelname)s]: %(message)s",
+        level=getattr(logging, logging_level),
+    )
     logger.info("Starting PyQS version {}".format(__version__))
-    manager = ManagerWorker(queue_prefixes, concurrency, interval, batchsize, prefetch_multiplier=prefetch_multiplier, region=region, access_key_id=access_key_id, secret_access_key=secret_access_key)
+    manager = ManagerWorker(
+        queue_prefixes, concurrency, interval, batchsize,
+        prefetch_multiplier=prefetch_multiplier, region=region,
+        access_key_id=access_key_id, secret_access_key=secret_access_key,
+    )
     manager.start()
     manager.sleep()
