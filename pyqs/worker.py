@@ -335,7 +335,7 @@ class ManagerWorker(object):
         signal.signal(SIG, self._graceful_shutdown)
 
     def _graceful_shutdown(self, signum, frame):
-        logger.info('Received shutdown signal', signum)
+        logger.info('Received shutdown signal %s', signum)
         self._running = False
 
     def _exit(self):
