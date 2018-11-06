@@ -28,7 +28,7 @@ install_deps:
 
 run_test:
 	@echo "Running \033[0;32mtest suite\033[0m "; \
-	AWS_DEFAULT_REGION='us-east-1' nosetests --stop --with-coverage --cover-package=$(PACKAGE) \
+	AWS_DEFAULT_REGION='us-east-1' nosetests --with-coverage --cover-package=$(PACKAGE) \
 		--cover-branches --cover-erase --verbosity=2; \
 
 test: prepare
