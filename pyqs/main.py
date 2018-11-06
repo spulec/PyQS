@@ -3,6 +3,8 @@
 from __future__ import unicode_literals
 
 import logging
+import os
+import sys
 from argparse import ArgumentParser
 
 from .worker import ManagerWorker
@@ -114,9 +116,16 @@ Run PyQS workers for the given queues
     )
 
 
+def _add_cwd_to_path():
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+
 def _main(queue_prefixes, concurrency=5, logging_level="WARN", region='us-east-1', access_key_id=None, secret_access_key=None, interval=1, batchsize=10, prefetch_multiplier=2):
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=getattr(logging, logging_level))
     logger.info("Starting PyQS version {}".format(__version__))
+    _add_cwd_to_path()
     manager = ManagerWorker(queue_prefixes, concurrency, interval, batchsize, prefetch_multiplier=prefetch_multiplier, region=region, access_key_id=access_key_id, secret_access_key=secret_access_key)
     manager.start()
     manager.sleep()
