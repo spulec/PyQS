@@ -37,6 +37,7 @@ class BaseWorker(Process):
     def shutdown(self):
         logger.info("Received shutdown signal, shutting down PID {}!".format(os.getpid()))
         self.should_exit.set()
+        self.join()
 
     def parent_is_alive(self):
         if os.getppid() == 1:
