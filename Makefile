@@ -29,7 +29,7 @@ install_deps:
 run_test:
 	@echo "Running \033[0;32mtest suite\033[0m "; \
 	AWS_DEFAULT_REGION='us-east-1' nosetests --with-coverage --cover-package=$(PACKAGE) \
-		--cover-branches --cover-erase --verbosity=2; \
+		--cover-branches --cover-erase --verbosity=2; pycodestyle; \
 
 test: prepare
 	@make run_test

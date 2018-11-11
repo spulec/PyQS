@@ -6,11 +6,13 @@ from api.example import blueprint as example_blueprint
 config_name = os.environ.get('ENV', 'development')
 current_config = config[config_name]
 
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(current_config)
 
     return app
+
 
 app = create_app()
 app.register_blueprint(example_blueprint)
