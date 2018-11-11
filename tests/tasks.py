@@ -13,7 +13,8 @@ def index_incrementer(message, extra=None):
     if isinstance(message, basestring):
         task_results.append(message)
     else:
-        raise ValueError("Need to be given basestring, was given {}".format(message))
+        raise ValueError(
+            "Need to be given basestring, was given {}".format(message))
 
 
 @task()
