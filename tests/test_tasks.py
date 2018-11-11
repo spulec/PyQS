@@ -3,7 +3,9 @@ import json
 import boto3
 from moto import mock_sqs, mock_sqs_deprecated
 
-from .tasks import index_incrementer, send_email, delayed_task, custom_path_task
+from .tasks import (
+    index_incrementer, send_email, delayed_task, custom_path_task,
+)
 
 
 @mock_sqs()
@@ -21,8 +23,12 @@ def test_basic_delay():
     len(all_queues).should.equal(1)
 
     queue_url = all_queues[0]
-    queue_url.should.equal("https://queue.amazonaws.com/123456789012/tests.tasks.index_incrementer")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue_url.should.equal(
+        "https://queue.amazonaws.com/123456789012/"
+        "tests.tasks.index_incrementer"
+    )
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
     message = conn.receive_message(QueueUrl=queue_url)['Messages'][0]
@@ -49,7 +55,8 @@ def test_specified_queue():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/email")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
 
@@ -68,7 +75,8 @@ def test_message_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/delayed")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('0')
 
 
@@ -87,7 +95,8 @@ def test_message_add_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/email")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('0')
 
 
@@ -106,7 +115,8 @@ def test_message_no_delay():
 
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/delayed")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
 
@@ -124,7 +134,8 @@ def test_custom_function_path():
     len(queue_urls).should.equal(1)
     queue_url = queue_urls[0]
     queue_url.should.equal("https://queue.amazonaws.com/123456789012/foobar")
-    queue = conn.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+    queue = conn.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
     queue['ApproximateNumberOfMessages'].should.equal('1')
 
     message = conn.receive_message(QueueUrl=queue_url)['Messages'][0]

@@ -11,7 +11,9 @@ from nose.tools import timed
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker
-from tests.utils import MockLoggingHandler, ThreadWithReturnValue2, ThreadWithReturnValue3
+from tests.utils import (
+    MockLoggingHandler, ThreadWithReturnValue2, ThreadWithReturnValue3,
+)
 
 
 @mock_sqs
@@ -23,7 +25,10 @@ def test_manager_worker_create_proper_children_workers():
     conn = boto3.client('sqs', region_name='us-east-1')
     conn.create_queue(QueueName="email")
 
-    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=3, interval=2, batchsize=10)
+    manager = ManagerWorker(
+        queue_prefixes=['email'], worker_concurrency=3, interval=2,
+        batchsize=10,
+    )
 
     len(manager.reader_children).should.equal(1)
     len(manager.worker_children).should.equal(3)
@@ -39,15 +44,20 @@ def test_manager_worker_with_queue_prefix():
     conn.create_queue(QueueName="email.foobar")
     conn.create_queue(QueueName="email.baz")
 
-    manager = ManagerWorker(queue_prefixes=['email.*'], worker_concurrency=1, interval=1, batchsize=10)
+    manager = ManagerWorker(
+        queue_prefixes=['email.*'], worker_concurrency=1, interval=1,
+        batchsize=10,
+    )
 
     len(manager.reader_children).should.equal(2)
     children = manager.reader_children
     # Pull all the read children and sort by name to make testing easier
     sorted_children = sorted(children, key=lambda child: child.queue_url)
 
-    sorted_children[0].queue_url.should.equal("https://queue.amazonaws.com/123456789012/email.baz")
-    sorted_children[1].queue_url.should.equal("https://queue.amazonaws.com/123456789012/email.foobar")
+    sorted_children[0].queue_url.should.equal(
+        "https://queue.amazonaws.com/123456789012/email.baz")
+    sorted_children[1].queue_url.should.equal(
+        "https://queue.amazonaws.com/123456789012/email.foobar")
 
 
 @mock_sqs
@@ -59,7 +69,10 @@ def test_manager_start_and_stop():
     conn = boto3.client('sqs', region_name='us-east-1')
     conn.create_queue(QueueName="email")
 
-    manager = ManagerWorker(queue_prefixes=['email'], worker_concurrency=2, interval=1, batchsize=10)
+    manager = ManagerWorker(
+        queue_prefixes=['email'], worker_concurrency=2, interval=1,
+        batchsize=10,
+    )
 
     len(manager.worker_children).should.equal(2)
 
@@ -86,7 +99,10 @@ def test_main_method(ManagerWorker):
     """
     _main(["email1", "email2"], concurrency=2)
 
-    ManagerWorker.assert_called_once_with(['email1', 'email2'], 2, 1, 10, prefetch_multiplier=2, region='us-east-1', secret_access_key=None, access_key_id=None)
+    ManagerWorker.assert_called_once_with(
+        ['email1', 'email2'], 2, 1, 10, prefetch_multiplier=2,
+        region='us-east-1', secret_access_key=None, access_key_id=None,
+    )
     ManagerWorker.return_value.start.assert_called_once_with()
 
 
@@ -98,26 +114,18 @@ def test_real_main_method(ArgumentParser, _main):
     """
     Test parsing of arguments from main method
     """
-    ArgumentParser.return_value.parse_args.return_value = Mock(concurrency=3,
-                                                               queues=["email1"],
-                                                               interval=1,
-                                                               batchsize=10,
-                                                               logging_level="WARN",
-                                                               region='us-east-1',
-                                                               prefetch_multiplier=2,
-                                                               access_key_id=None,
-                                                               secret_access_key=None)
+    ArgumentParser.return_value.parse_args.return_value = Mock(
+        concurrency=3, queues=["email1"], interval=1, batchsize=10,
+        logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
+        access_key_id=None, secret_access_key=None,
+    )
     main()
 
-    _main.assert_called_once_with(queue_prefixes=['email1'],
-                                  concurrency=3,
-                                  interval=1,
-                                  batchsize=10,
-                                  logging_level="WARN",
-                                  region='us-east-1',
-                                  prefetch_multiplier=2,
-                                  access_key_id=None,
-                                  secret_access_key=None)
+    _main.assert_called_once_with(
+        queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=10,
+        logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
+        access_key_id=None, secret_access_key=None,
+    )
 
 
 @mock_sqs
@@ -174,9 +182,11 @@ def test_master_counts_processes():
 
     # Check messages
     msg1 = "Reader Processes: 1"
-    logger.handlers[0].messages['debug'][-2].lower().should.contain(msg1.lower())
+    logger.handlers[0].messages['debug'][-2].lower().should.contain(
+        msg1.lower())
     msg2 = "Worker Processes: 2"
-    logger.handlers[0].messages['debug'][-1].lower().should.contain(msg2.lower())
+    logger.handlers[0].messages['debug'][-1].lower().should.contain(
+        msg2.lower())
 
 
 @mock_sqs
@@ -260,7 +270,10 @@ def test_master_handles_signals(sys):
         os.kill(os.getpid(), signal.SIGTERM)
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=1, batchsize=10)
+    manager = ManagerWorker(
+        queue_prefixes=["tester"], worker_concurrency=1, interval=1,
+        batchsize=10,
+    )
     manager.process_counts = process_counts
     manager._graceful_shutdown = MagicMock()
 
@@ -320,7 +333,10 @@ def test_master_shuts_down_busy_read_workers():
             return False
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=0, interval=0.0, batchsize=1)
+    manager = ManagerWorker(
+        queue_prefixes=["tester"], worker_concurrency=0, interval=0.0,
+        batchsize=1,
+    )
     manager.start()
 
     # Give our processes a moment to start
@@ -329,11 +345,15 @@ def test_master_shuts_down_busy_read_workers():
     # Setup Threading watcher
     try:
         # Try Python 2 Style
-        thread = ThreadWithReturnValue2(target=sleep_and_kill, args=(manager.reader_children[0].pid,))
+        thread = ThreadWithReturnValue2(
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,))
         thread.daemon = True
     except TypeError:
         # Use Python 3 Style
-        thread = ThreadWithReturnValue3(target=sleep_and_kill, args=(manager.reader_children[0].pid,), daemon=True)
+        thread = ThreadWithReturnValue3(
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,),
+            daemon=True,
+        )
 
     thread.start()
 
@@ -393,7 +413,10 @@ def test_master_shuts_down_busy_process_workers():
             return False
 
     # Setup Manager
-    manager = ManagerWorker(queue_prefixes=["tester"], worker_concurrency=1, interval=0.0, batchsize=1)
+    manager = ManagerWorker(
+        queue_prefixes=["tester"], worker_concurrency=1, interval=0.0,
+        batchsize=1,
+    )
     manager.start()
 
     # Give our processes a moment to start
@@ -402,11 +425,15 @@ def test_master_shuts_down_busy_process_workers():
     # Setup Threading watcher
     try:
         # Try Python 2 Style
-        thread = ThreadWithReturnValue2(target=sleep_and_kill, args=(manager.reader_children[0].pid,))
+        thread = ThreadWithReturnValue2(
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,))
         thread.daemon = True
     except TypeError:
         # Use Python 3 Style
-        thread = ThreadWithReturnValue3(target=sleep_and_kill, args=(manager.reader_children[0].pid,), daemon=True)
+        thread = ThreadWithReturnValue3(
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,),
+            daemon=True,
+        )
 
     thread.start()
 
