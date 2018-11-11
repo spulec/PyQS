@@ -18,13 +18,15 @@ def get_or_create_queue(queue_name):
     try:
         return sqs.get_queue_by_name(QueueName=queue_name)
     except ClientError as exc:
-        if exc.response['Error']['Code'] == 'AWS.SimpleQueueService.NonExistentQueue':
+        non_existent_code = 'AWS.SimpleQueueService.NonExistentQueue'
+        if exc.response['Error']['Code'] == non_existent_code:
             return sqs.create_queue(QueueName=queue_name)
         else:
             raise
 
 
-def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
+def task_delayer(func_to_delay, queue_name, delay_seconds=None,
+                 override=False):
     function_path = function_to_import_path(func_to_delay, override=override)
 
     if not queue_name:
@@ -55,7 +57,8 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None, override=False):
 
 
 class task(object):
-    def __init__(self, queue=None, delay_seconds=None, custom_function_path=None):
+    def __init__(self, queue=None, delay_seconds=None,
+                 custom_function_path=None):
         self.queue_name = queue
         self.delay_seconds = delay_seconds
         self.function_path = custom_function_path
@@ -67,5 +70,6 @@ class task(object):
         if self.function_path:
             override = True
             function = self.function_path
-        func_to_wrap.delay = task_delayer(function, self.queue_name, self.delay_seconds, override=override)
+        func_to_wrap.delay = task_delayer(
+            function, self.queue_name, self.delay_seconds, override=override)
         return func_to_wrap

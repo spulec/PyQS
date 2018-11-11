@@ -1,5 +1,6 @@
 from .common import Config
 
+
 class DevelopmentConfig(Config):
     DEBUG = True
 
