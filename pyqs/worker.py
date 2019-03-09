@@ -18,14 +18,17 @@ except ImportError:
 
 import boto3
 
-from pyqs.utils import decode_message
+from pyqs.utils import get_aws_region_name, decode_message
 
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
 
 
-def get_conn(region='us-east-1', access_key_id=None, secret_access_key=None):
+def get_conn(region=None, access_key_id=None, secret_access_key=None):
+    if not region:
+        region = get_aws_region_name()
+
     return boto3.client(
         "sqs",
         aws_access_key_id=access_key_id,
@@ -232,7 +235,7 @@ class ProcessWorker(BaseWorker):
 class ManagerWorker(object):
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
-                 prefetch_multiplier=2, region='us-east-1', access_key_id=None,
+                 prefetch_multiplier=2, region=None, access_key_id=None,
                  secret_access_key=None):
         self.connection_args = {
             "region": region,
