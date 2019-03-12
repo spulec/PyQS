@@ -128,7 +128,7 @@ def _add_cwd_to_path():
         sys.path.insert(0, cwd)
 
 
-        def _main(queue_prefixes, concurrency=5, logging_level="WARN",
+def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region='us-east-1', access_key_id=None, secret_access_key=None,
           interval=1, batchsize=10, prefetch_multiplier=2):
     logging.basicConfig(
