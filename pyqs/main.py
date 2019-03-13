@@ -72,7 +72,7 @@ Run PyQS workers for the given queues
         "--region",
         dest="region",
         type=str,
-        default="us-east-1",
+        default=None,
         help='AWS Region to connect to SQS',
         action="store",
     )
@@ -129,7 +129,7 @@ def _add_cwd_to_path():
 
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
-          region='us-east-1', access_key_id=None, secret_access_key=None,
+          region=None, access_key_id=None, secret_access_key=None,
           interval=1, batchsize=10, prefetch_multiplier=2):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",

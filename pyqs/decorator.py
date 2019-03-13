@@ -4,16 +4,13 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 
-from .utils import function_to_import_path
+from .utils import get_aws_region_name, function_to_import_path
 
 logger = logging.getLogger("pyqs")
 
 
 def get_or_create_queue(queue_name):
-    region_name = boto3.session.Session().region_name
-    if not region_name:
-        region_name = 'us-east-1'
-
+    region_name = get_aws_region_name()
     sqs = boto3.resource('sqs', region_name=region_name)
     try:
         return sqs.get_queue_by_name(QueueName=queue_name)
