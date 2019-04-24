@@ -7,6 +7,7 @@ import time
 import boto3
 from mock import patch, Mock, MagicMock
 from moto import mock_sqs, mock_sqs_deprecated
+from nose.tools import timed
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker
@@ -155,39 +156,6 @@ def test_master_spawns_worker_processes():
 
 @mock_sqs
 @mock_sqs_deprecated
-def test_master_replaces_reader_processes():
-    """
-    Test managing process replaces reader children
-    """
-
-    # Setup SQS Queue
-    conn = boto3.client('sqs', region_name='us-east-1')
-    conn.create_queue(QueueName="tester")
-
-    # Setup Manager
-    manager = ManagerWorker(
-        queue_prefixes=["tester"], worker_concurrency=1, interval=1,
-        batchsize=10,
-    )
-    manager.start()
-
-    # Get Reader PID
-    pid = manager.reader_children[0].pid
-
-    # Kill Reader and wait to replace
-    manager.reader_children[0].shutdown()
-    time.sleep(0.1)
-    manager.replace_workers()
-
-    # Check Replacement
-    manager.reader_children[0].pid.shouldnt.equal(pid)
-
-    # Cleanup
-    manager.stop()
-
-
-@mock_sqs
-@mock_sqs_deprecated
 def test_master_counts_processes():
     """
     Test managing process counts child processes
@@ -223,34 +191,63 @@ def test_master_counts_processes():
 
 @mock_sqs
 @mock_sqs_deprecated
-def test_master_replaces_worker_processes():
-    """
-    Test managing process replaces worker processes
-    """
-    # Setup SQS Queue
-    conn = boto3.client('sqs', region_name='us-east-1')
-    conn.create_queue(QueueName="tester")
+class TestMasterWorker:
 
-    # Setup Manager
-    manager = ManagerWorker(
-        queue_prefixes=["tester"], worker_concurrency=1, interval=1,
-        batchsize=10,
-    )
-    manager.start()
+    def setup(self):
+        # For debugging test
+        import sys
+        logger = logging.getLogger("pyqs")
+        logger.setLevel(logging.DEBUG)
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout_handler)
 
-    # Get Worker PID
-    pid = manager.worker_children[0].pid
+        # Setup SQS Queue
+        self.conn = boto3.client('sqs', region_name='us-east-1')
+        self.conn.create_queue(QueueName="tester")
 
-    # Kill Worker and wait to replace
-    manager.worker_children[0].shutdown()
-    time.sleep(0.1)
-    manager.replace_workers()
+        # Setup Manager
+        self.manager = ManagerWorker(
+            queue_prefixes=["tester"], worker_concurrency=1, interval=1,
+            batchsize=10,
+        )
+        self.manager.start()
 
-    # Check Replacement
-    manager.worker_children[0].pid.shouldnt.equal(pid)
+    def teardown(self):
+        self.manager.stop()
 
-    # Cleanup
-    manager.stop()
+    @timed(60)
+    def test_master_replaces_reader_processes(self):
+        """
+        Test managing process replaces reader children
+        """
+        # Get Reader PID
+        pid = self.manager.reader_children[0].pid
+
+        # Kill Reader and wait to replace
+        self.manager.reader_children[0].shutdown()
+        time.sleep(0.1)
+        self.manager.reader_children[0].is_alive().should.equal(False)
+        self.manager.replace_workers()
+
+        # Check Replacement
+        self.manager.reader_children[0].pid.shouldnt.equal(pid)
+
+    @timed(60)
+    def test_master_replaces_worker_processes(self):
+        """
+        Test managing process replaces worker processes
+        """
+        # Get Worker PID
+        pid = self.manager.worker_children[0].pid
+
+        # Kill Worker and wait to replace
+        self.manager.worker_children[0].shutdown()
+        time.sleep(0.1)
+        self.manager.worker_children[0].is_alive().should.equal(False)
+        self.manager.replace_workers()
+
+        # Check Replacement
+        self.manager.worker_children[0].pid.shouldnt.equal(pid)
 
 
 @mock_sqs
