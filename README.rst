@@ -206,6 +206,11 @@ command, which simplifies task importing. We call the
 method directly, skipping **main()** since it only performs argument
 parsing.
 
+**Running inside of containers**
+
+PyQS assumes that the process id is not 1. If you are running PyQS inside of a
+container, you should wrap it in supervisor or something like `dummy-init https://github.com/Yelp/dumb-init`__.
+
 **Why not just use Celery?**
 
 We like Celery. We `(Yipit.com) <http://yipit.com/about/team/>`__ even
