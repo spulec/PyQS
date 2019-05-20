@@ -209,7 +209,7 @@ parsing.
 **Running inside of containers**
 
 PyQS assumes that the process id is not 1. If you are running PyQS inside of a
-container, you should wrap it in supervisor or something like `dummy-init https://github.com/Yelp/dumb-init`__.
+container, you should wrap it in supervisor or something like `dummy-init <https://github.com/Yelp/dumb-init>`__.
 
 **Why not just use Celery?**
 
