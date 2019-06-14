@@ -314,7 +314,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     logger.handlers[0].messages['error'][0].lower().should.contain(
         msg1.lower())
     msg2 = (
-        'raise ValueError("Need to be given basestring, was given '
+        '"Need to be given basestring, was given '
         '{}".format(message))\nValueError: Need to be given basestring, '
         'was given 23'
     )  # noqa
@@ -344,6 +344,7 @@ def test_parent_process_death(os):
     worker.parent_is_alive().should.be.false
 
 
+@patch("pyqs.worker.INITIAL_PID", 1234)
 @patch("pyqs.worker.os")
 def test_parent_process_alive(os):
     """
@@ -355,6 +356,7 @@ def test_parent_process_alive(os):
     worker.parent_is_alive().should.be.true
 
 
+@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
@@ -429,6 +431,7 @@ def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
     worker.run().should.be.none
 
 
+@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
@@ -486,11 +489,16 @@ def test_process_worker_with_parent_process_alive_and_should_exit(os):
     worker.run().should.be.none
 
 
+@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
-def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs():
+@patch("pyqs.worker.os")
+def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs(
+        os):
     """
     Test worker processes shutdown after processing maximum number of messages
     """
+    os.getppid.return_value = 1234
+
     # Setup SQS Queue
     conn = boto3.client('sqs', region_name='us-east-1')
     queue_url = conn.create_queue(QueueName="tester")['QueueUrl']

@@ -100,7 +100,7 @@ def test_main_method(ManagerWorker):
 
     ManagerWorker.assert_called_once_with(
         ['email1', 'email2'], 2, 1, 10, prefetch_multiplier=2,
-        region='us-east-1', secret_access_key=None, access_key_id=None,
+        region=None, secret_access_key=None, access_key_id=None,
     )
     ManagerWorker.return_value.start.assert_called_once_with()
 

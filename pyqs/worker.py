@@ -23,6 +23,7 @@ from pyqs.utils import get_aws_region_name, decode_message
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
+INITIAL_PID = os.getpid()
 
 
 def get_conn(region=None, access_key_id=None, secret_access_key=None):
@@ -48,7 +49,7 @@ class BaseWorker(Process):
         self.should_exit.set()
 
     def parent_is_alive(self):
-        if os.getppid() == 1:
+        if os.getppid() != INITIAL_PID:
             logger.info(
                 "Parent process has gone away, exiting process {}!".format(
                     os.getpid()))
