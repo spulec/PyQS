@@ -43,7 +43,7 @@ def test_worker_fills_internal_queue():
     conn.send_message(QueueUrl=queue_url, MessageBody=message)
 
     internal_queue = Queue()
-    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE)
+    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE, parent_id=1)
     worker.read_message()
 
     packed_message = internal_queue.get(timeout=1)
@@ -78,7 +78,7 @@ def test_worker_fills_internal_queue_only_until_maximum_queue_size():
         conn.send_message(QueueUrl=queue_url, MessageBody=message)
 
     internal_queue = Queue(maxsize=2)
-    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE)
+    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE, parent_id=1)
     worker.read_message()
 
     # The internal queue should only have two messages on it
@@ -110,7 +110,7 @@ def test_worker_fills_internal_queue_from_celery_task():
     conn.send_message(QueueUrl=queue_url, MessageBody=message)
 
     internal_queue = Queue()
-    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE)
+    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE, parent_id=1)
     worker.read_message()
 
     packed_message = internal_queue.get(timeout=1)
@@ -159,7 +159,7 @@ def test_worker_processes_tasks_from_internal_queue():
     )
 
     # Process message
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker.process_message()
 
     task_results.should.equal(['Test message'])
@@ -203,7 +203,7 @@ def test_worker_fills_internal_queue_and_respects_visibility_timeouts():
 
     # Run Reader
     internal_queue = Queue(maxsize=1)
-    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE)
+    worker = ReadWorker(queue_url, internal_queue, BATCHSIZE, parent_id=1)
     worker.read_message()
 
     # Check log messages
@@ -251,7 +251,7 @@ def test_worker_processes_tasks_and_logs_correctly():
     )
 
     # Process message
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker.process_message()
 
     # Check output
@@ -301,7 +301,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     )
 
     # Process message
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker.process_message()
 
     # Check output
@@ -329,7 +329,7 @@ def test_worker_processes_empty_queue():
     """
     internal_queue = Queue()
 
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker.process_message()
 
 
@@ -338,13 +338,12 @@ def test_parent_process_death(os):
     """
     Test worker processes recognize parent process death
     """
-    os.getppid.return_value = 1
+    os.getppid.return_value = 123
 
-    worker = BaseWorker()
+    worker = BaseWorker(parent_id=1)
     worker.parent_is_alive().should.be.false
 
 
-@patch("pyqs.worker.INITIAL_PID", 1234)
 @patch("pyqs.worker.os")
 def test_parent_process_alive(os):
     """
@@ -352,11 +351,10 @@ def test_parent_process_alive(os):
     """
     os.getppid.return_value = 1234
 
-    worker = BaseWorker()
+    worker = BaseWorker(parent_id=1234)
     worker.parent_is_alive().should.be.true
 
 
-@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
@@ -368,14 +366,14 @@ def test_read_worker_with_parent_process_alive_and_should_not_exit(os):
     queue_url = conn.create_queue(QueueName="tester")['QueueUrl']
 
     # Setup PPID
-    os.getppid.return_value = 1234
+    os.getppid.return_value = 1
 
     # Setup dummy read_message
     def read_message():
         raise Exception("Called")
 
     # When I have a parent process, and shutdown is not set
-    worker = ReadWorker(queue_url, "foo", BATCHSIZE)
+    worker = ReadWorker(queue_url, "foo", BATCHSIZE, parent_id=1)
     worker.read_message = read_message
 
     # Then read_message() is reached
@@ -399,7 +397,7 @@ def test_read_worker_with_parent_process_alive_and_should_exit(os):
     q = Queue(1)
 
     # When I have a parent process, and shutdown is set
-    worker = ReadWorker(queue_url, q, BATCHSIZE)
+    worker = ReadWorker(queue_url, q, BATCHSIZE, parent_id=1)
     worker.read_message = Mock()
     worker.shutdown()
 
@@ -418,20 +416,19 @@ def test_read_worker_with_parent_process_dead_and_should_not_exit(os):
     queue_url = conn.create_queue(QueueName="tester")['QueueUrl']
 
     # Setup PPID
-    os.getppid.return_value = 1
+    os.getppid.return_value = 123
 
     # Setup internal queue
     q = Queue(1)
 
     # When I have no parent process, and shutdown is not set
-    worker = ReadWorker(queue_url, q, BATCHSIZE)
+    worker = ReadWorker(queue_url, q, BATCHSIZE, parent_id=1)
     worker.read_message = Mock()
 
     # Then I return from run()
     worker.run().should.be.none
 
 
-@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
@@ -440,14 +437,14 @@ def test_process_worker_with_parent_process_alive_and_should_not_exit(os):
     is not set
     """
     # Setup PPID
-    os.getppid.return_value = 1234
+    os.getppid.return_value = 1
 
     # Setup dummy read_message
     def process_message():
         raise Exception("Called")
 
     # When I have a parent process, and shutdown is not set
-    worker = ProcessWorker("foo", INTERVAL)
+    worker = ProcessWorker("foo", INTERVAL, parent_id=1)
     worker.process_message = process_message
 
     # Then process_message() is reached
@@ -464,7 +461,7 @@ def test_process_worker_with_parent_process_dead_and_should_not_exit(os):
     os.getppid.return_value = 1
 
     # When I have no parent process, and shutdown is not set
-    worker = ProcessWorker("foo", INTERVAL)
+    worker = ProcessWorker("foo", INTERVAL, parent_id=1)
     worker.process_message = Mock()
 
     # Then I return from run()
@@ -481,7 +478,7 @@ def test_process_worker_with_parent_process_alive_and_should_exit(os):
     os.getppid.return_value = 1234
 
     # When I have a parent process, and shutdown is set
-    worker = ProcessWorker("foo", INTERVAL)
+    worker = ProcessWorker("foo", INTERVAL, parent_id=1)
     worker.process_message = Mock()
     worker.shutdown()
 
@@ -489,7 +486,6 @@ def test_process_worker_with_parent_process_alive_and_should_exit(os):
     worker.run().should.be.none
 
 
-@patch("pyqs.worker.INITIAL_PID", 1234)
 @mock_sqs
 @patch("pyqs.worker.os")
 def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs(
@@ -497,7 +493,7 @@ def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs(
     """
     Test worker processes shutdown after processing maximum number of messages
     """
-    os.getppid.return_value = 1234
+    os.getppid.return_value = 1
 
     # Setup SQS Queue
     conn = boto3.client('sqs', region_name='us-east-1')
@@ -543,7 +539,7 @@ def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs(
     )
 
     # When I Process messages
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker._messages_to_process_before_shutdown = 2
 
     # Then I return from run()
@@ -592,7 +588,7 @@ def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
     )
 
     # When I process the message
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker.process_message()
 
     # Then I get an error about exceeding the visibility timeout
@@ -656,7 +652,7 @@ def test_worker_processes_only_incr_processed_counter_if_a_msg_was_processed():
     thread.start()
 
     # When I Process messages
-    worker = ProcessWorker(internal_queue, INTERVAL)
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
     worker._messages_to_process_before_shutdown = 2
 
     # Then I return from run() after processing 2 messages

@@ -23,7 +23,6 @@ from pyqs.utils import get_aws_region_name, decode_message
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
-INITIAL_PID = os.getpid()
 
 
 def get_conn(region=None, access_key_id=None, secret_access_key=None):
@@ -39,6 +38,7 @@ def get_conn(region=None, access_key_id=None, secret_access_key=None):
 
 class BaseWorker(Process):
     def __init__(self, *args, **kwargs):
+        self.parent_id = kwargs.pop('parent_id')
         super(BaseWorker, self).__init__(*args, **kwargs)
         self.should_exit = Event()
 
@@ -49,7 +49,7 @@ class BaseWorker(Process):
         self.should_exit.set()
 
     def parent_is_alive(self):
-        if os.getppid() != INITIAL_PID:
+        if os.getppid() != self.parent_id:
             logger.info(
                 "Parent process has gone away, exiting process {}!".format(
                     os.getpid()))
@@ -256,6 +256,7 @@ class ManagerWorker(object):
         self.setup_internal_queue(worker_concurrency)
         self.reader_children = []
         self.worker_children = []
+        self._pid = os.getpid()
         self._initialize_reader_children()
         self._initialize_worker_children(worker_concurrency)
         self._running = True
@@ -272,6 +273,7 @@ class ManagerWorker(object):
                 ReadWorker(
                     queue_url, self.internal_queue, self.batchsize,
                     connection_args=self.connection_args,
+                    parent_id=self._pid,
                 )
             )
 
@@ -281,6 +283,7 @@ class ManagerWorker(object):
                 ProcessWorker(
                     self.internal_queue, self.interval,
                     connection_args=self.connection_args,
+                    parent_id=self._pid,
                 )
             )
 
@@ -368,6 +371,7 @@ class ManagerWorker(object):
                 worker = ReadWorker(
                     queue_url, self.internal_queue, self.batchsize,
                     connection_args=self.connection_args,
+                    parent_id=self._pid,
                 )
                 worker.start()
                 self.reader_children.append(worker)
@@ -382,6 +386,7 @@ class ManagerWorker(object):
                 worker = ProcessWorker(
                     self.internal_queue, self.interval,
                     connection_args=self.connection_args,
+                    parent_id=self._pid,
                 )
                 worker.start()
                 self.worker_children.append(worker)
