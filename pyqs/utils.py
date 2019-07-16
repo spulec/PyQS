@@ -3,6 +3,7 @@ import json
 import pickle
 
 import boto3
+from datetime import timedelta
 
 
 def decode_message(message):
@@ -36,3 +37,20 @@ def get_aws_region_name():
         region_name = 'us-east-1'
 
     return region_name
+
+
+class TaskContext(object):
+    """ Tasks may optionally accept a _context variable. If they do, an
+     instance of this object is passed as the context. """
+
+    def __init__(self, conn, queue_url, receipt_handle):
+        self.conn = conn
+        self.queue_url = queue_url
+        self.receipt_handle = receipt_handle
+
+    def change_message_visibility(self, timeout=timedelta(minutes=10)):
+        self.conn.change_message_visibility(
+            QueueUrl=self.queue_url,
+            ReceiptHandle=self.receipt_handle,
+            VisibilityTimeout=int(timeout.total_seconds())
+        )

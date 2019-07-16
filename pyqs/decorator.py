@@ -54,6 +54,11 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None,
 
 
 class task(object):
+    """ Decorator that enables sqs based task execution. If the function
+    accepts an optional `_context` argument, an instance of TaskContext is
+    passed to the task function. The context allows the function to do things
+    like change message visibility. """
+
     def __init__(self, queue=None, delay_seconds=None,
                  custom_function_path=None):
         self.queue_name = queue
