@@ -186,6 +186,7 @@ class ProcessWorker(BaseWorker):
         full_task_path = message_body['task']
         args = message_body['args']
         kwargs = message_body['kwargs']
+        message_id = message['MessageId']
         receipt_handle = message['ReceiptHandle']
 
         task_name = full_task_path.split(".")[-1]
@@ -201,6 +202,7 @@ class ProcessWorker(BaseWorker):
             kwargs['_context'] = TaskContext(
                 conn=self.conn,
                 queue_url=queue_url,
+                message_id=message_id,
                 receipt_handle=receipt_handle
             )
 

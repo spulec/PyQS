@@ -43,9 +43,10 @@ class TaskContext(object):
     """ Tasks may optionally accept a _context variable. If they do, an
      instance of this object is passed as the context. """
 
-    def __init__(self, conn, queue_url, receipt_handle):
+    def __init__(self, conn, queue_url, message_id, receipt_handle):
         self.conn = conn
         self.queue_url = queue_url
+        self.message_id = message_id
         self.receipt_handle = receipt_handle
 
     def change_message_visibility(self, timeout=timedelta(minutes=10)):
