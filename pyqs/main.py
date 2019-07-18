@@ -107,6 +107,15 @@ Run PyQS workers for the given queues
         action="store",
     )
 
+    parser.add_argument(
+        "--long-polling-interval",
+        dest="long_polling_interval",
+        type=int,
+        default=10,
+        help='How long to poll SQS for a new message.',
+        action="store",
+    )
+
     args = parser.parse_args()
 
     _main(
@@ -118,7 +127,8 @@ Run PyQS workers for the given queues
         secret_access_key=args.secret_access_key,
         interval=args.interval,
         batchsize=args.batchsize,
-        prefetch_multiplier=args.prefetch_multiplier
+        prefetch_multiplier=args.prefetch_multiplier,
+        long_polling_interval=args.long_polling_interval
     )
 
 
@@ -130,7 +140,7 @@ def _add_cwd_to_path():
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region=None, access_key_id=None, secret_access_key=None,
-          interval=1, batchsize=10, prefetch_multiplier=2):
+          interval=1, batchsize=10, prefetch_multiplier=2, long_polling_interval=10):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",
         level=getattr(logging, logging_level),
@@ -138,8 +148,8 @@ def _main(queue_prefixes, concurrency=5, logging_level="WARN",
     logger.info("Starting PyQS version {}".format(__version__))
     manager = ManagerWorker(
         queue_prefixes, concurrency, interval, batchsize,
-        prefetch_multiplier=prefetch_multiplier, region=region,
-        access_key_id=access_key_id, secret_access_key=secret_access_key,
+        prefetch_multiplier=prefetch_multiplier, long_polling_interval=long_polling_interval,
+        region=region, access_key_id=access_key_id, secret_access_key=secret_access_key,
     )
     _add_cwd_to_path()
     manager.start()

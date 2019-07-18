@@ -100,6 +100,7 @@ def test_main_method(ManagerWorker):
 
     ManagerWorker.assert_called_once_with(
         ['email1', 'email2'], 2, 1, 10, prefetch_multiplier=2,
+        long_polling_interval=10,
         region=None, secret_access_key=None, access_key_id=None,
     )
     ManagerWorker.return_value.start.assert_called_once_with()
@@ -116,14 +117,15 @@ def test_real_main_method(ArgumentParser, _main):
     ArgumentParser.return_value.parse_args.return_value = Mock(
         concurrency=3, queues=["email1"], interval=1, batchsize=10,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
+        long_polling_interval=3,
         access_key_id=None, secret_access_key=None,
     )
     main()
 
     _main.assert_called_once_with(
         queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=10,
-        logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
-        access_key_id=None, secret_access_key=None,
+        long_polling_interval=3, logging_level="WARN", region='us-east-1',
+        prefetch_multiplier=2, access_key_id=None, secret_access_key=None,
     )
 
 
@@ -288,7 +290,6 @@ def test_master_handles_signals(sys):
     sys.exit.assert_called_once_with(0)
 
 
-@patch("pyqs.worker.LONG_POLLING_INTERVAL", 3)
 @mock_sqs
 @mock_sqs_deprecated
 def test_master_shuts_down_busy_read_workers():
@@ -338,7 +339,7 @@ def test_master_shuts_down_busy_read_workers():
     # Setup Manager
     manager = ManagerWorker(
         queue_prefixes=["tester"], worker_concurrency=0, interval=0.0,
-        batchsize=1,
+        batchsize=1, long_polling_interval=3
     )
     manager.start()
 

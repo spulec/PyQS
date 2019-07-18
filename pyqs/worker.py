@@ -21,7 +21,7 @@ import boto3
 from pyqs.utils import get_aws_region_name, decode_message
 
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
-LONG_POLLING_INTERVAL = 20
+DEFAULT_LONG_POLLING_INTERVAL = 10
 logger = logging.getLogger("pyqs")
 
 
@@ -59,7 +59,7 @@ class BaseWorker(Process):
 
 class ReadWorker(BaseWorker):
 
-    def __init__(self, queue_url, internal_queue, batchsize,
+    def __init__(self, queue_url, internal_queue, batchsize, long_polling_interval=DEFAULT_LONG_POLLING_INTERVAL,
                  connection_args=None, *args, **kwargs):
         super(ReadWorker, self).__init__(*args, **kwargs)
         if connection_args is None:
@@ -74,6 +74,7 @@ class ReadWorker(BaseWorker):
 
         self.internal_queue = internal_queue
         self.batchsize = batchsize
+        self.long_polling_interval = long_polling_interval
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
@@ -91,7 +92,7 @@ class ReadWorker(BaseWorker):
         messages = self.conn.receive_message(
             QueueUrl=self.queue_url,
             MaxNumberOfMessages=self.batchsize,
-            WaitTimeSeconds=LONG_POLLING_INTERVAL,
+            WaitTimeSeconds=self.long_polling_interval,
         ).get('Messages', [])
 
         logger.debug(
@@ -236,7 +237,7 @@ class ProcessWorker(BaseWorker):
 class ManagerWorker(object):
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
-                 prefetch_multiplier=2, region=None, access_key_id=None,
+                 prefetch_multiplier=2, long_polling_interval=DEFAULT_LONG_POLLING_INTERVAL, region=None, access_key_id=None,
                  secret_access_key=None):
         self.connection_args = {
             "region": region,
@@ -250,6 +251,7 @@ class ManagerWorker(object):
             self.batchsize = 1
         self.interval = interval
         self.prefetch_multiplier = prefetch_multiplier
+        self.long_polling_interval = long_polling_interval
         self.load_queue_prefixes(queue_prefixes)
         self.queue_urls = self.get_queue_urls_from_queue_prefixes(
             self.queue_prefixes)
@@ -272,6 +274,7 @@ class ManagerWorker(object):
             self.reader_children.append(
                 ReadWorker(
                     queue_url, self.internal_queue, self.batchsize,
+                    long_polling_interval=self.long_polling_interval,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
                 )
@@ -370,6 +373,7 @@ class ManagerWorker(object):
                 self.reader_children.pop(index)
                 worker = ReadWorker(
                     queue_url, self.internal_queue, self.batchsize,
+                    long_polling_interval=self.long_polling_interval,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
                 )
