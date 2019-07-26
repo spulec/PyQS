@@ -189,7 +189,7 @@ class ProcessWorker(BaseWorker):
         kwargs = message_body['kwargs']
         message_id = message['MessageId']
         receipt_handle = message['ReceiptHandle']
-        approx_receive_count = message.get('Attributes', {}).get("ApproximateReceiveCount", 1)
+        approx_receive_count = int(message.get('Attributes', {}).get("ApproximateReceiveCount", 1))
 
         task_name = full_task_path.split(".")[-1]
         task_path = ".".join(full_task_path.split(".")[:-1])
