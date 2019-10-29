@@ -1,6 +1,35 @@
 Changelog
 ---------
 
+0.1.3
+~~~~~
+
+- Change PPID checking to check for actual parent ID, instead of `PID 1`.  This fixes issues running on docker containers where PPID of 1 is expected.
+
+0.1.2
+~~~~~
+
+- 419ce2e Merge pull request #56 from orangain/honor-aws-region
+- 7c793d0 Merge pull request #55 from orangain/fix-indentation-error
+- 0643fbb Honor aws region configured by .aws/config or env var
+- f5c1db9 Fix indentation error
+- cdae257 Merge pull request #52 from cedarai/master
+- a2ac378 Merge pull request #53 from p1c2u/fix/nosetest-remove-stop-parameter
+- dbaa391 Merge pull request #51 from p1c2u/fix/pep8-styles-fixes
+- 1577382 Nosetest remove stop parameter
+- b7420e3 Add current directory to PYTHONPATH
+- 8d04b62 Graceful shutdown logging msg fix
+- 796acbc PEP8 styles fixes
+- 72dcb62 Merge pull request #50 from hobbsh/add_example
+- d00d31f Update readme
+- dfbf459 Use .delay() to submit messages
+- 612158f Merge pull request #49 from hobbsh/no_log_0_msg
+- 09a649f Use logger.debug for success SQS log line
+- dfd56c3 Fix typos in readme
+- a774155 Add example flask app
+- 17e7b7c Don't log message retrieve success when there are 0 messages
+- 14eb827 Add shutdown signal logging.
+
 0.1.1
 ~~~~~
 
