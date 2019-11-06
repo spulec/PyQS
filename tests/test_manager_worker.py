@@ -153,6 +153,7 @@ def test_master_spawns_worker_processes():
     manager.stop()
 
 
+@patch("pyqs.worker.LONG_POLLING_INTERVAL", 3)
 @mock_sqs
 @mock_sqs_deprecated
 def test_master_replaces_reader_processes():
