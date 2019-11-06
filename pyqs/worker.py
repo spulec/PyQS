@@ -200,10 +200,10 @@ class ProcessWorker(BaseWorker):
             )
             return True
         try:
-            start_time = time.clock()
+            start_time = time.time()
             task(*args, **kwargs)
         except Exception:
-            end_time = time.clock()
+            end_time = time.time()
             logger.exception(
                 "Task {} raised error in {:.4f} seconds: with args: {} "
                 "and kwargs: {}: {}".format(
@@ -216,7 +216,7 @@ class ProcessWorker(BaseWorker):
             )
             return True
         else:
-            end_time = time.clock()
+            end_time = time.time()
             self.conn.delete_message(
                 QueueUrl=queue_url,
                 ReceiptHandle=message['ReceiptHandle']
