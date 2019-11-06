@@ -176,7 +176,7 @@ def test_master_replaces_reader_processes():
 
     # Kill Reader and wait to replace
     manager.reader_children[0].shutdown()
-    time.sleep(0.1)
+    time.sleep(.5)
     manager.replace_workers()
 
     # Check Replacement
@@ -243,7 +243,7 @@ def test_master_replaces_worker_processes():
 
     # Kill Worker and wait to replace
     manager.worker_children[0].shutdown()
-    time.sleep(0.1)
+    time.sleep(0.5)
     manager.replace_workers()
 
     # Check Replacement
