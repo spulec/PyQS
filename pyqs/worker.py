@@ -250,7 +250,7 @@ class ManagerWorker(object):
             self.batchsize = 1
         self.interval = interval
         self.prefetch_multiplier = prefetch_multiplier
-        self.load_queue_prefixes(queue_prefixes)
+        self.queue_prefixes = queue_prefixes
         self.queue_urls = self.get_queue_urls_from_queue_prefixes(
             self.queue_prefixes)
         self.setup_internal_queue(worker_concurrency)
@@ -287,18 +287,14 @@ class ManagerWorker(object):
                 )
             )
 
-    def load_queue_prefixes(self, queue_prefixes):
-        self.queue_prefixes = queue_prefixes
-
-        logger.info("Loading Queues:")
-        for queue_prefix in queue_prefixes:
-            logger.info("[Queue]\t{}".format(queue_prefix))
-
     def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
         conn = get_conn(**self.connection_args)
         queue_urls = conn.list_queues().get('QueueUrls', [])
         matching_urls = []
+
+        logger.info("Loading Queues:")
         for prefix in queue_prefixes:
+            logger.info("[Queue]\t{}".format(prefix))
             matching_urls.extend([
                 queue_url for queue_url in queue_urls if
                 fnmatch.fnmatch(queue_url.rsplit("/", 1)[1], prefix)
