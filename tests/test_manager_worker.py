@@ -6,7 +6,7 @@ import time
 
 import boto3
 from mock import patch, Mock, MagicMock
-from moto import mock_sqs, mock_sqs_deprecated
+from moto import mock_sqs
 
 from pyqs.main import main, _main
 from pyqs.worker import ManagerWorker
@@ -16,7 +16,6 @@ from tests.utils import (
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_manager_worker_create_proper_children_workers():
     """
     Test managing process creates multiple child workers
@@ -34,7 +33,6 @@ def test_manager_worker_create_proper_children_workers():
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_manager_worker_with_queue_prefix():
     """
     Test managing process can find queues by prefix
@@ -60,7 +58,6 @@ def test_manager_worker_with_queue_prefix():
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_manager_start_and_stop():
     """
     Test managing process can start and stop child processes
@@ -91,7 +88,6 @@ def test_manager_start_and_stop():
 
 @patch("pyqs.main.ManagerWorker")
 @mock_sqs
-@mock_sqs_deprecated
 def test_main_method(ManagerWorker):
     """
     Test creation of manager process from _main method
@@ -108,7 +104,6 @@ def test_main_method(ManagerWorker):
 @patch("pyqs.main._main")
 @patch("pyqs.main.ArgumentParser")
 @mock_sqs
-@mock_sqs_deprecated
 def test_real_main_method(ArgumentParser, _main):
     """
     Test parsing of arguments from main method
@@ -128,7 +123,6 @@ def test_real_main_method(ArgumentParser, _main):
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_spawns_worker_processes():
     """
     Test managing process creates child workers
@@ -155,7 +149,6 @@ def test_master_spawns_worker_processes():
 
 @patch("pyqs.worker.LONG_POLLING_INTERVAL", 1)
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_replaces_reader_processes():
     """
     Test managing process replaces reader children
@@ -188,7 +181,6 @@ def test_master_replaces_reader_processes():
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_counts_processes():
     """
     Test managing process counts child processes
@@ -223,7 +215,6 @@ def test_master_counts_processes():
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_replaces_worker_processes():
     """
     Test managing process replaces worker processes
@@ -256,7 +247,6 @@ def test_master_replaces_worker_processes():
 
 @mock_sqs
 @patch("pyqs.worker.sys")
-@mock_sqs_deprecated
 def test_master_handles_signals(sys):
     """
     Test managing process handles OS signals
@@ -291,7 +281,6 @@ def test_master_handles_signals(sys):
 
 @patch("pyqs.worker.LONG_POLLING_INTERVAL", 3)
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_shuts_down_busy_read_workers():
     """
     Test managing process properly cleans up busy Reader Workers
@@ -371,7 +360,6 @@ def test_master_shuts_down_busy_read_workers():
 
 
 @mock_sqs
-@mock_sqs_deprecated
 def test_master_shuts_down_busy_process_workers():
     """
     Test managing process properly cleans up busy Process Workers

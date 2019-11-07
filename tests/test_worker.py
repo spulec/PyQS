@@ -314,8 +314,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
     logger.handlers[0].messages['error'][0].lower().should.contain(
         msg1.lower())
     msg2 = (
-        '"Need to be given basestring, was given '
-        '{}".format(message))\nValueError: Need to be given basestring, '
+        'ValueError: Need to be given basestring, '
         'was given 23'
     )  # noqa
     logger.handlers[0].messages['error'][0].lower().should.contain(

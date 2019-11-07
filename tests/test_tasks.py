@@ -1,7 +1,7 @@
 import json
 
 import boto3
-from moto import mock_sqs, mock_sqs_deprecated
+from moto import mock_sqs
 
 from .tasks import (
     index_incrementer, send_email, delayed_task, custom_path_task,
@@ -9,7 +9,6 @@ from .tasks import (
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_basic_delay():
     """
     Test delaying task to default queue
@@ -41,7 +40,6 @@ def test_basic_delay():
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_specified_queue():
     """
     Test delaying task to specific queue
@@ -61,7 +59,6 @@ def test_specified_queue():
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_message_delay():
     """
     Test delaying task with delay_seconds
@@ -81,7 +78,6 @@ def test_message_delay():
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_message_add_delay():
     """
     Test configuring the delay time of a task
@@ -101,7 +97,6 @@ def test_message_add_delay():
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_message_no_delay():
     """
     Test removing the delay time of a task
@@ -121,7 +116,6 @@ def test_message_no_delay():
 
 
 @mock_sqs()
-@mock_sqs_deprecated()
 def test_custom_function_path():
     """
     Test delaying task with custom function path
