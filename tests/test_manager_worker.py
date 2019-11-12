@@ -436,3 +436,35 @@ def test_master_shuts_down_busy_process_workers():
     return_value = thread.join()
     if not return_value:
         raise Exception("Reader Worker failed to quit!")
+
+
+@mock_sqs
+def test_manager_picks_up_new_queues():
+    """
+    Test that the manager will recognize new SQS queues have been added
+    """
+
+    # Setup SQS Queue
+    conn = boto3.client('sqs', region_name='us-east-1')
+
+    # Setup Manager
+    manager = ManagerWorker(
+        queue_prefixes=["tester"], worker_concurrency=1, interval=1,
+        batchsize=10,
+    )
+    manager.start()
+
+    # No queues found
+    len(manager.reader_children).should.equal(0)
+
+    # Create the queue
+    conn.create_queue(QueueName="tester")
+    manager.check_for_new_queues()
+
+    # The manager should have seen the new queue was created and add a reader
+    len(manager.reader_children).should.equal(1)
+    manager.reader_children[0].queue_url.should.equal(
+        "https://queue.amazonaws.com/123456789012/tester")
+
+    # Cleanup
+    manager.stop()

@@ -302,6 +302,20 @@ class ManagerWorker(object):
         logger.info("Found matching SQS Queues: {}".format(matching_urls))
         return matching_urls
 
+    def check_for_new_queues(self):
+        queue_urls = self.get_queue_urls_from_queue_prefixes(
+            self.queue_prefixes)
+        new_queue_urls = set(queue_urls) - set(self.queue_urls)
+        for new_queue_url in new_queue_urls:
+            logger.info("Found new queue\t{}".format(new_queue_url))
+            worker = ReadWorker(
+                new_queue_url, self.internal_queue, self.batchsize,
+                connection_args=self.connection_args,
+                parent_id=self._pid,
+            )
+            worker.start()
+            self.reader_children.append(worker)
+
     def setup_internal_queue(self, worker_concurrency):
         self.internal_queue = Queue(
             worker_concurrency * self.prefetch_multiplier * self.batchsize)
@@ -328,9 +342,11 @@ class ManagerWorker(object):
         while self._running:
             counter = counter + 1
             if counter % 1000 == 0:
-                counter = 0
                 self.process_counts()
                 self.replace_workers()
+            if counter % 30000 == 0:
+                counter = 0
+                self.check_for_new_queues()
             time.sleep(0.001)
         self._exit()
 
