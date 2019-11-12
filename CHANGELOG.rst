@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.1.4
+~~~~~
+
+- Improve behavior when a queue is created after a worker has started. The worker will now refresh the queues every 30 seconds to check for new queues.
+
 0.1.3
 ~~~~~
 
