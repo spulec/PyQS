@@ -11,14 +11,20 @@ import traceback
 import time
 
 from multiprocessing import Event, Process, Queue
+
 try:
     from queue import Empty, Full
 except ImportError:
     from Queue import Empty, Full
 
+try:
+    from inspect import getfullargspec as get_args
+except ImportError:
+    from inspect import getargspec as get_args
+
 import boto3
 
-from pyqs.utils import get_aws_region_name, decode_message
+from pyqs.utils import get_aws_region_name, decode_message, TaskContext
 
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
@@ -92,6 +98,7 @@ class ReadWorker(BaseWorker):
             QueueUrl=self.queue_url,
             MaxNumberOfMessages=self.batchsize,
             WaitTimeSeconds=LONG_POLLING_INTERVAL,
+            AttributeNames=["ApproximateReceiveCount"]
         ).get('Messages', [])
 
         logger.debug(
@@ -180,6 +187,9 @@ class ProcessWorker(BaseWorker):
         full_task_path = message_body['task']
         args = message_body['args']
         kwargs = message_body['kwargs']
+        message_id = message['MessageId']
+        receipt_handle = message['ReceiptHandle']
+        approx_receive_count = int(message.get('Attributes', {}).get("ApproximateReceiveCount", 1))
 
         task_name = full_task_path.split(".")[-1]
         task_path = ".".join(full_task_path.split(".")[:-1])
@@ -187,6 +197,17 @@ class ProcessWorker(BaseWorker):
         task_module = importlib.import_module(task_path)
 
         task = getattr(task_module, task_name)
+
+        # if the task accepts the optional _context argument, pass it the TaskContext
+        if '_context' in get_args(task).args:
+            kwargs = dict(kwargs)
+            kwargs['_context'] = TaskContext(
+                conn=self.conn,
+                queue_url=queue_url,
+                message_id=message_id,
+                receipt_handle=receipt_handle,
+                approx_receive_count=approx_receive_count
+            )
 
         current_time = time.time()
         if int(current_time - fetch_time) >= timeout:
@@ -214,12 +235,20 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
+
+            # since the task failed, mark it is available again quickly (10 seconds)
+            self.conn.change_message_visibility(
+                QueueUrl=queue_url,
+                ReceiptHandle=receipt_handle,
+                VisibilityTimeout=10
+            )
+
             return True
         else:
             end_time = time.time()
             self.conn.delete_message(
                 QueueUrl=queue_url,
-                ReceiptHandle=message['ReceiptHandle']
+                ReceiptHandle=receipt_handle
             )
             logger.info(
                 "Processed task {} in {:.4f} seconds with args: {} "
