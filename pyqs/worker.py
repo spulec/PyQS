@@ -188,6 +188,16 @@ class ProcessWorker(BaseWorker):
 
         task = getattr(task_module, task_name)
 
+        context = {
+            "task_name": task_name,
+            "args": args,
+            "kwargs": kwargs,
+            "full_task_path": full_task_path,
+            "fetch_time": fetch_time,
+            "queue_url": queue_url,
+            "timeout": timeout
+        }
+
         current_time = time.time()
         if int(current_time - fetch_time) >= timeout:
             logger.warning(
@@ -201,6 +211,8 @@ class ProcessWorker(BaseWorker):
             return True
         try:
             start_time = time.time()
+            if task.pre_process_hook:
+                task.pre_process_hook(context)
             task(*args, **kwargs)
         except Exception:
             end_time = time.time()
@@ -214,6 +226,10 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
+            if task.post_process_hook:
+                context["status"] = "exception"
+                context["exception"] = traceback.format_exc()
+                task.post_process_hook(context)
             return True
         else:
             end_time = time.time()
@@ -230,6 +246,9 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
+            if task.post_process_hook:
+                context["status"] = "success"
+                task.post_process_hook(context)
         return True
 
 
