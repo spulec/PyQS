@@ -54,21 +54,11 @@ def task_delayer(func_to_delay, queue_name, delay_seconds=None,
 
 
 class task(object):
-    _hooks = {}
-
     def __init__(self, queue=None, delay_seconds=None,
-                 custom_function_path=None, hooks=None):
+                 custom_function_path=None):
         self.queue_name = queue
         self.delay_seconds = delay_seconds
         self.function_path = custom_function_path
-
-    @classmethod
-    def set_hooks(self, hooks):
-        self._hooks = hooks
-
-    @classmethod
-    def get_hooks(self):
-        return self._hooks
 
     def __call__(self, *args, **kwargs):
         func_to_wrap = args[0]
@@ -79,6 +69,4 @@ class task(object):
             function = self.function_path
         func_to_wrap.delay = task_delayer(
             function, self.queue_name, self.delay_seconds, override=override)
-        func_to_wrap.pre_process_hook = self.get_hooks().get("pre_process")
-        func_to_wrap.post_process_hook = self.get_hooks().get("post_process")
         return func_to_wrap

@@ -19,6 +19,7 @@ except ImportError:
 import boto3
 
 from pyqs.utils import get_aws_region_name, decode_message
+from pyqs.events import get_events
 
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
@@ -211,8 +212,9 @@ class ProcessWorker(BaseWorker):
             return True
         try:
             start_time = time.time()
-            if task.pre_process_hook:
-                task.pre_process_hook(context)
+            pre_process_hooks = get_events().pre_process
+            for hook in pre_process_hooks:
+                hook(context)
             task(*args, **kwargs)
         except Exception:
             end_time = time.time()
@@ -226,10 +228,11 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
-            if task.post_process_hook:
-                context["status"] = "exception"
-                context["exception"] = traceback.format_exc()
-                task.post_process_hook(context)
+            post_process_hooks = get_events().post_process
+            context["status"] = "exception"
+            context["exception"] = traceback.format_exc()
+            for hook in post_process_hooks:
+                hook(context)
             return True
         else:
             end_time = time.time()
@@ -246,9 +249,10 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
-            if task.post_process_hook:
-                context["status"] = "success"
-                task.post_process_hook(context)
+            post_process_hooks = get_events().post_process
+            context["status"] = "success"
+            for hook in post_process_hooks:
+                hook(context)
         return True
 
 
