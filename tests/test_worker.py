@@ -17,11 +17,50 @@ from pyqs.worker import (
     MESSAGE_DOWNLOAD_BATCH_SIZE,
 )
 from pyqs.utils import decode_message
+from pyqs.events import register_event
 from tests.tasks import task_results
-from tests.utils import MockLoggingHandler
+from tests.utils import MockLoggingHandler, clear_events_registry
 
 BATCHSIZE = 10
 INTERVAL = 0.1
+
+
+def _add_message_to_internal_queue(task_name):
+    # Setup SQS Queue
+    conn = boto3.client('sqs', region_name='us-east-1')
+    queue_url = conn.create_queue(QueueName="tester")['QueueUrl']
+
+    # Build the SQS message
+    message = {
+        'Body': json.dumps({
+            'task': task_name,
+            'args': [],
+            'kwargs': {
+                'message': 'Test message',
+            },
+        }),
+        "ReceiptHandle": "receipt-1234",
+    }
+    # Add message to queue
+    internal_queue = Queue()
+    internal_queue.put(
+        {
+            "message": message,
+            "queue": queue_url,
+            "start_time": time.time(),
+            "timeout": 30,
+        }
+    )
+    return internal_queue
+
+
+def _check_internal_queue_is_empty(internal_queue):
+    try:
+        internal_queue.get(timeout=1)
+    except Empty:
+        pass
+    else:
+        raise AssertionError("The internal queue should be empty")
 
 
 @mock_sqs
@@ -688,3 +727,170 @@ def test_worker_to_large_batch_size():
 
     worker = ManagerWorker(QUEUE_PREFIX, CONCURRENCY, INTERVAL, BATCHSIZE)
     worker.batchsize.should.equal(MESSAGE_DOWNLOAD_BATCH_SIZE)
+
+
+@clear_events_registry
+@mock_sqs
+def test_worker_processes_tasks_with_pre_process_callback():
+    """
+    Test worker runs registered callbacks when processing a message
+    """
+
+    # Declare this so it can be checked as a side effect to pre_process_with_side_effect
+    pre_process_context = None
+
+    def pre_process_with_side_effect(context):
+        nonlocal pre_process_context
+        pre_process_context = context
+
+    # When we have a registered pre_process callback
+    register_event("pre_process", pre_process_with_side_effect)
+
+    # And we process a message
+    internal_queue = _add_message_to_internal_queue('tests.tasks.index_incrementer')
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
+    worker.process_message()
+
+    # We should run the callback with the task context
+    pre_process_context['task_name'].should.equal('index_incrementer')
+    pre_process_context['args'].should.equal([])
+    pre_process_context['kwargs'].should.equal({'message': 'Test message'})
+    pre_process_context['full_task_path'].should.equal('tests.tasks.index_incrementer')
+    pre_process_context['queue_url'].should.equal('https://queue.amazonaws.com/123456789012/tester')
+    pre_process_context['timeout'].should.equal(30)
+
+    assert 'fetch_time' in pre_process_context
+    assert 'status' not in pre_process_context
+
+    # And the internal queue should be empty
+    _check_internal_queue_is_empty(internal_queue)
+
+
+@clear_events_registry
+@mock_sqs
+def test_worker_processes_tasks_with_post_process_callback_success():
+    """
+    Test worker runs registered callbacks when processing a message and it succeeds
+    """
+
+    # Declare this so it can be checked as a side effect to post_process_with_side_effect
+    post_process_context = None
+
+    def post_process_with_side_effect(context):
+        nonlocal post_process_context
+        post_process_context = context
+
+    # When we have a registered post_process callback
+    register_event("post_process", post_process_with_side_effect)
+
+    # And we process a message
+    internal_queue = _add_message_to_internal_queue('tests.tasks.index_incrementer')
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
+    worker.process_message()
+
+    # We should run the callback with the task context
+    post_process_context['task_name'].should.equal('index_incrementer')
+    post_process_context['args'].should.equal([])
+    post_process_context['kwargs'].should.equal({'message': 'Test message'})
+    post_process_context['full_task_path'].should.equal('tests.tasks.index_incrementer')
+    post_process_context['queue_url'].should.equal('https://queue.amazonaws.com/123456789012/tester')
+    post_process_context['timeout'].should.equal(30)
+    post_process_context['status'].should.equal('success')
+
+    assert 'fetch_time' in post_process_context
+    assert 'exception' not in post_process_context
+
+    # And the internal queue should be empty
+    _check_internal_queue_is_empty(internal_queue)
+
+
+@clear_events_registry
+@mock_sqs
+def test_worker_processes_tasks_with_post_process_callback_exception():
+    """
+    Test worker runs registered callbacks when processing a message and it fails
+    """
+
+    # Declare this so it can be checked as a side effect to post_process_with_side_effect
+    post_process_context = None
+
+    def post_process_with_side_effect(context):
+        nonlocal post_process_context
+        post_process_context = context
+
+    # When we have a registered post_process callback
+    register_event("post_process", post_process_with_side_effect)
+
+    # And we process a message
+    internal_queue = _add_message_to_internal_queue('tests.tasks.exception_task')
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
+    worker.process_message()
+
+    # We should run the callback with the task context
+    post_process_context['task_name'].should.equal('exception_task')
+    post_process_context['args'].should.equal([])
+    post_process_context['kwargs'].should.equal({'message': 'Test message'})
+    post_process_context['full_task_path'].should.equal('tests.tasks.exception_task')
+    post_process_context['queue_url'].should.equal('https://queue.amazonaws.com/123456789012/tester')
+    post_process_context['timeout'].should.equal(30)
+    post_process_context['status'].should.equal('exception')
+
+    assert 'fetch_time' in post_process_context
+    assert 'exception' in post_process_context
+
+    # And the internal queue should be empty
+    _check_internal_queue_is_empty(internal_queue)
+
+
+@clear_events_registry
+@mock_sqs
+def test_worker_processes_tasks_with_pre_and_post_process():
+    """
+    Test worker runs registered callbacks when processing a message
+    """
+
+    # Declare these so they can be checked as a side effect to the callbacks
+    pre_process_context = None
+    post_process_context = None
+
+    def pre_process_with_side_effect(context):
+        nonlocal pre_process_context
+        pre_process_context = context
+
+    def post_process_with_side_effect(context):
+        nonlocal post_process_context
+        post_process_context = context
+
+    # When we have a registered pre_process and post_process callback
+    register_event("pre_process", pre_process_with_side_effect)
+    register_event("post_process", post_process_with_side_effect)
+
+    # And we process a message
+    internal_queue = _add_message_to_internal_queue('tests.tasks.index_incrementer')
+    worker = ProcessWorker(internal_queue, INTERVAL, parent_id=1)
+    worker.process_message()
+
+    # We should run the callbacks with the right task contexts
+    pre_process_context['task_name'].should.equal('index_incrementer')
+    pre_process_context['args'].should.equal([])
+    pre_process_context['kwargs'].should.equal({'message': 'Test message'})
+    pre_process_context['full_task_path'].should.equal('tests.tasks.index_incrementer')
+    pre_process_context['queue_url'].should.equal('https://queue.amazonaws.com/123456789012/tester')
+    pre_process_context['timeout'].should.equal(30)
+
+    assert 'fetch_time' in pre_process_context
+    assert 'status' not in pre_process_context
+
+    post_process_context['task_name'].should.equal('index_incrementer')
+    post_process_context['args'].should.equal([])
+    post_process_context['kwargs'].should.equal({'message': 'Test message'})
+    post_process_context['full_task_path'].should.equal('tests.tasks.index_incrementer')
+    post_process_context['queue_url'].should.equal('https://queue.amazonaws.com/123456789012/tester')
+    post_process_context['timeout'].should.equal(30)
+    post_process_context['status'].should.equal('success')
+
+    assert 'fetch_time' in post_process_context
+    assert 'exception' not in post_process_context
+
+    # And the internal queue should be empty
+    _check_internal_queue_is_empty(internal_queue)

@@ -1,16 +1,6 @@
-from functools import wraps
 from nose.tools import assert_raises
 from pyqs import events
-
-
-def clear_events_registry(fn):
-    """Clear the global events registry before each test."""
-
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        events.clear_events()
-        return fn(*args, **kwargs)
-    return wrapper
+from tests.utils import clear_events_registry
 
 
 @clear_events_registry

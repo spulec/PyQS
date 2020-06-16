@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import copy
 import fnmatch
 import importlib
 import logging
@@ -189,7 +190,7 @@ class ProcessWorker(BaseWorker):
 
         task = getattr(task_module, task_name)
 
-        context = {
+        pre_process_context = {
             "task_name": task_name,
             "args": args,
             "kwargs": kwargs,
@@ -198,6 +199,9 @@ class ProcessWorker(BaseWorker):
             "queue_url": queue_url,
             "timeout": timeout
         }
+
+        # Modify the contexts separately so the original context isn't modified by later processing
+        post_process_context = copy.copy(pre_process_context)
 
         current_time = time.time()
         if int(current_time - fetch_time) >= timeout:
@@ -212,9 +216,7 @@ class ProcessWorker(BaseWorker):
             return True
         try:
             start_time = time.time()
-            pre_process_hooks = get_events().pre_process
-            for hook in pre_process_hooks:
-                hook(context)
+            self._run_hooks("pre_process", pre_process_context)
             task(*args, **kwargs)
         except Exception:
             end_time = time.time()
@@ -228,11 +230,9 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
-            post_process_hooks = get_events().post_process
-            context["status"] = "exception"
-            context["exception"] = traceback.format_exc()
-            for hook in post_process_hooks:
-                hook(context)
+            post_process_context["status"] = "exception"
+            post_process_context["exception"] = traceback.format_exc()
+            self._run_hooks("post_process", post_process_context)
             return True
         else:
             end_time = time.time()
@@ -249,11 +249,14 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
-            post_process_hooks = get_events().post_process
-            context["status"] = "success"
-            for hook in post_process_hooks:
-                hook(context)
+            post_process_context["status"] = "success"
+            self._run_hooks("post_process", post_process_context)
         return True
+
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
 
 
 class ManagerWorker(object):

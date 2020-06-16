@@ -36,3 +36,8 @@ def delayed_task():
 @task(custom_function_path="custom_function.path", queue="foobar")
 def custom_path_task():
     pass
+
+
+@task()
+def exception_task(message, extra=None):
+    raise Exception('this task raises an exception!')
