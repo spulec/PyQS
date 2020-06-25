@@ -106,6 +106,7 @@ Hooks
 PyQS has an event registry which can be used to run a function before or after every tasks runs.
 
 .. code:: python
+
     from pyqs import task, events
 
     def print_pre_process(context):
@@ -120,8 +121,6 @@ PyQS has an event registry which can be used to run a function before or after e
     @task(queue="my_queue")
     def send_email(subject):
         pass
-
-
 
 Operational Notes
 ~~~~~~~~~~~~~~~~~
