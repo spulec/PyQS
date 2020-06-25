@@ -6,6 +6,7 @@ dist/*
 *.egg-info/*
 build/*
 htmlcov/*
+.idea/*
 *~
 *#
 

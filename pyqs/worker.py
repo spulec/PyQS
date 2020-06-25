@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import copy
 import fnmatch
 import importlib
 import logging
@@ -19,6 +20,7 @@ except ImportError:
 import boto3
 
 from pyqs.utils import get_aws_region_name, decode_message
+from pyqs.events import get_events
 
 MESSAGE_DOWNLOAD_BATCH_SIZE = 10
 LONG_POLLING_INTERVAL = 20
@@ -188,6 +190,20 @@ class ProcessWorker(BaseWorker):
 
         task = getattr(task_module, task_name)
 
+        pre_process_context = {
+            "task_name": task_name,
+            "args": args,
+            "kwargs": kwargs,
+            "full_task_path": full_task_path,
+            "fetch_time": fetch_time,
+            "queue_url": queue_url,
+            "timeout": timeout
+        }
+
+        # Modify the contexts separately so the original
+        # context isn't modified by later processing
+        post_process_context = copy.copy(pre_process_context)
+
         current_time = time.time()
         if int(current_time - fetch_time) >= timeout:
             logger.warning(
@@ -201,6 +217,7 @@ class ProcessWorker(BaseWorker):
             return True
         try:
             start_time = time.time()
+            self._run_hooks("pre_process", pre_process_context)
             task(*args, **kwargs)
         except Exception:
             end_time = time.time()
@@ -214,6 +231,9 @@ class ProcessWorker(BaseWorker):
                     traceback.format_exc(),
                 )
             )
+            post_process_context["status"] = "exception"
+            post_process_context["exception"] = traceback.format_exc()
+            self._run_hooks("post_process", post_process_context)
             return True
         else:
             end_time = time.time()
@@ -230,7 +250,14 @@ class ProcessWorker(BaseWorker):
                     repr(kwargs),
                 )
             )
+            post_process_context["status"] = "success"
+            self._run_hooks("post_process", post_process_context)
         return True
+
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
 
 
 class ManagerWorker(object):

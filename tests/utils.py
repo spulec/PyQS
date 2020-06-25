@@ -2,8 +2,11 @@
 from __future__ import unicode_literals
 
 import logging
+from functools import wraps
 
 from threading import Thread
+
+from pyqs import events
 
 
 class MockLoggingHandler(logging.Handler):
@@ -55,3 +58,13 @@ class ThreadWithReturnValue3(Thread):
     def join(self):
         Thread.join(self)
         return self._return
+
+
+def clear_events_registry(fn):
+    """Clear the global events registry before each test."""
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        events.clear_events()
+        return fn(*args, **kwargs)
+    return wrapper
