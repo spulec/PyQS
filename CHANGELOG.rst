@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+0.1.5
+~~~~~
+
+- Add events hooks for pre and post processors.
+
+
 0.1.4
 ~~~~~
 
