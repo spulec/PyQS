@@ -30,7 +30,9 @@ def register_event(name, callback):
     if hasattr(_EVENTS, name):
         getattr(_EVENTS, name).append(callback)
     else:
-        raise NoEventException(f"{name} is not a valid pyqs event.")
+        raise NoEventException(
+            "{name} is not a valid pyqs event.".format(name=name)
+        )
 
 
 def get_events():

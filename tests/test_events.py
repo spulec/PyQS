@@ -22,7 +22,9 @@ def test_register_multiple_same_events():
 
     events.register_event("pre_process", print_pre_process)
     events.register_event("pre_process", print_numbers)
-    events.get_events().pre_process.should.equal([print_pre_process, print_numbers])
+    events.get_events().pre_process.should.equal([
+        print_pre_process, print_numbers
+    ])
 
 
 @clear_events_registry
@@ -54,11 +56,20 @@ def test_register_multiple_different_events():
     events.register_event("pre_process", print_numbers)
     events.register_event("post_process", print_post_process)
     events.register_event("post_process", print_numbers)
-    events.get_events().pre_process.should.equal([print_pre_process, print_numbers])
-    events.get_events().post_process.should.equal([print_post_process, print_numbers])
+    events.get_events().pre_process.should.equal([
+        print_pre_process, print_numbers
+    ])
+    events.get_events().post_process.should.equal([
+        print_post_process, print_numbers
+    ])
 
 
 @clear_events_registry
 def test_register_non_existent_event():
     non_existent_event = "non_existent_event"
-    assert_raises(events.NoEventException, events.register_event, non_existent_event, lambda x: x)
+    assert_raises(
+        events.NoEventException,
+        events.register_event,
+        non_existent_event,
+        lambda x: x
+    )

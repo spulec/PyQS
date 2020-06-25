@@ -200,7 +200,8 @@ class ProcessWorker(BaseWorker):
             "timeout": timeout
         }
 
-        # Modify the contexts separately so the original context isn't modified by later processing
+        # Modify the contexts separately so the original
+        # context isn't modified by later processing
         post_process_context = copy.copy(pre_process_context)
 
         current_time = time.time()
