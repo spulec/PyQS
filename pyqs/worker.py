@@ -40,9 +40,20 @@ def get_conn(region=None, access_key_id=None, secret_access_key=None):
 
 class BaseWorker(Process):
     def __init__(self, *args, **kwargs):
+        self._connection = None
         self.parent_id = kwargs.pop('parent_id')
         super(BaseWorker, self).__init__(*args, **kwargs)
         self.should_exit = Event()
+
+    def _get_connection(self):
+        if self._connection:
+            return self._connection
+
+        if self.connection_args is None:
+            self._connection = get_conn()
+        else:
+            self._connection = get_conn(**self.connection_args)
+        return self._connection
 
     def shutdown(self):
         logger.info(
@@ -67,10 +78,9 @@ class ReadWorker(BaseWorker):
         if connection_args is None:
             connection_args = {}
         self.connection_args = connection_args
-        self.conn = get_conn(**self.connection_args)
         self.queue_url = queue_url
 
-        sqs_queue = self.conn.get_queue_attributes(
+        sqs_queue = get_conn(**self.connection_args).get_queue_attributes(
             QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
         self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
 
@@ -90,7 +100,7 @@ class ReadWorker(BaseWorker):
         self.internal_queue.cancel_join_thread()
 
     def read_message(self):
-        messages = self.conn.receive_message(
+        messages = self._get_connection().receive_message(
             QueueUrl=self.queue_url,
             MaxNumberOfMessages=self.batchsize,
             WaitTimeSeconds=LONG_POLLING_INTERVAL,
@@ -143,10 +153,7 @@ class ProcessWorker(BaseWorker):
     def __init__(self, internal_queue, interval, connection_args=None, *args,
                  **kwargs):
         super(ProcessWorker, self).__init__(*args, **kwargs)
-        if connection_args is None:
-            self.conn = get_conn()
-        else:
-            self.conn = get_conn(**connection_args)
+        self.connection_args = connection_args
         self.internal_queue = internal_queue
         self.interval = interval
         self._messages_to_process_before_shutdown = 100
@@ -237,7 +244,7 @@ class ProcessWorker(BaseWorker):
             return True
         else:
             end_time = time.time()
-            self.conn.delete_message(
+            self._get_connection().delete_message(
                 QueueUrl=queue_url,
                 ReceiptHandle=message['ReceiptHandle']
             )
