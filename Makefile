@@ -41,26 +41,7 @@ clean:
 	@find . -name __pycache__ -delete
 	@rm -rf .coverage *.egg-info *.log build dist MANIFEST yc
 
-publish: clean tag
-	@if [ -e "$$HOME/.pypirc" ]; then \
-		echo "Uploading to '$(CUSTOM_PIP_INDEX)'"; \
-		python setup.py register -r "$(CUSTOM_PIP_INDEX)"; \
-		python setup.py sdist upload -r "$(CUSTOM_PIP_INDEX)"; \
-	else \
-		echo "You should create a file called '.pypirc' under your home dir.\n"; \
-		echo "That's the right place to configure 'pypi' repos.\n"; \
-		exit 1; \
-	fi
-
-tag:
-	@if [ $$(git rev-list $$(git describe --abbrev=0 --tags)..HEAD --count) -gt 0 ]; then \
-		if [ $$(git log  -n 1 --oneline $$(git describe --abbrev=0 --tags)..HEAD CHANGELOG.rst | wc -l) -gt 0 ]; then \
-			git tag $$(python setup.py --version) && git push --tags || echo 'Version already released, update your version!'; \
-		else \
-			echo "CHANGELOG not updated since last release!"; \
-			exit 1; \
-		fi; \
-	else \
-		echo "No commits since last release!"; \
-		exit 1;\
-	fi
+publish: clean
+	rm -rf dist
+	python -m pep517.build --source --binary .
+	twine upload dist/*
