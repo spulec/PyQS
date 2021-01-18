@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+0.1.6
+~~~~~
+
+- Fix broken pickle of botocore clients.
+
 0.1.5
 ~~~~~
 
