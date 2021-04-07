@@ -111,14 +111,14 @@ def test_real_main_method(ArgumentParser, _main):
     ArgumentParser.return_value.parse_args.return_value = Mock(
         concurrency=3, queues=["email1"], interval=1, batchsize=10,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
-        access_key_id=None, secret_access_key=None,
+        access_key_id=None, secret_access_key=None, simple_worker=False,
     )
     main()
 
     _main.assert_called_once_with(
         queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=10,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
-        access_key_id=None, secret_access_key=None,
+        access_key_id=None, secret_access_key=None, simple_worker=False,
     )
 
 
