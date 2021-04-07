@@ -7,7 +7,7 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from .worker import ManagerWorker
+from .worker import ManagerWorker, SimpleManagerWorker
 from . import __version__
 
 logger = logging.getLogger("pyqs")
@@ -107,6 +107,13 @@ Run PyQS workers for the given queues
         action="store",
     )
 
+    parser.add_argument(
+        '--simple-worker',
+        dest='simple_worker',
+        default=False,
+        action='store_true'
+    )
+
     args = parser.parse_args()
 
     _main(
@@ -118,7 +125,8 @@ Run PyQS workers for the given queues
         secret_access_key=args.secret_access_key,
         interval=args.interval,
         batchsize=args.batchsize,
-        prefetch_multiplier=args.prefetch_multiplier
+        prefetch_multiplier=args.prefetch_multiplier,
+        simple_worker=args.simple_worker
     )
 
 
@@ -130,17 +138,27 @@ def _add_cwd_to_path():
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region=None, access_key_id=None, secret_access_key=None,
-          interval=1, batchsize=10, prefetch_multiplier=2):
+          interval=1, batchsize=10, prefetch_multiplier=2,
+          simple_worker=False):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",
         level=getattr(logging, logging_level),
     )
     logger.info("Starting PyQS version {}".format(__version__))
-    manager = ManagerWorker(
-        queue_prefixes, concurrency, interval, batchsize,
-        prefetch_multiplier=prefetch_multiplier, region=region,
-        access_key_id=access_key_id, secret_access_key=secret_access_key,
-    )
+
+    if simple_worker:
+        manager = SimpleManagerWorker(
+            queue_prefixes, concurrency, batchsize,
+            region=region, access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        )
+    else:
+        manager = ManagerWorker(
+            queue_prefixes, concurrency, interval, batchsize,
+            prefetch_multiplier=prefetch_multiplier, region=region,
+            access_key_id=access_key_id, secret_access_key=secret_access_key,
+        )
+
     _add_cwd_to_path()
     manager.start()
     manager.sleep()
