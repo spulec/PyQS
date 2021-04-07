@@ -267,6 +267,164 @@ class ProcessWorker(BaseWorker):
             hook(context)
 
 
+class SimpleProcessWorker(BaseWorker):
+
+    def __init__(self, queue_url, batchsize,
+                 connection_args=None, *args, **kwargs):
+        super(SimpleProcessWorker, self).__init__(*args, **kwargs)
+        if connection_args is None:
+            connection_args = {}
+        self.connection_args = connection_args
+        self.queue_url = queue_url
+
+        sqs_queue = get_conn(**self.connection_args).get_queue_attributes(
+            QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+        self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
+
+        self.batchsize = batchsize
+        self._messages_to_process_before_shutdown = 100
+        self.messages_processed = 0
+
+    def run(self):
+        # Set the child process to not receive any keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        logger.info(
+            "Running SimpleProcessWorker: {}, pid: {}".format(
+                self.queue_url, os.getpid()))
+
+        while not self.should_exit.is_set() and self.parent_is_alive():
+            self.read_message()
+
+            if self.messages_processed \
+                    >= self._messages_to_process_before_shutdown:
+                self.shutdown()
+
+    def read_message(self):
+        messages = self._get_connection().receive_message(
+            QueueUrl=self.queue_url,
+            MaxNumberOfMessages=self.batchsize,
+            WaitTimeSeconds=LONG_POLLING_INTERVAL,
+        ).get('Messages', [])
+
+        logger.debug(
+            "Successfully got {} messages from SQS queue {}".format(
+                len(messages), self.queue_url))  # noqa
+
+        start = time.time()
+
+        for message in messages:
+            end = time.time()
+            if int(end - start) >= self.visibility_timeout:
+                # Don't add any more messages since they have
+                # re-appeared in the sqs queue Instead just reset and get
+                # fresh messages from the sqs queue
+                msg = (
+                    "Clearing Local messages since we exceeded "
+                    "their visibility_timeout"
+                )
+                logger.warning(msg)
+                break
+
+            packed_message = {
+                "queue": self.queue_url,
+                "message": message,
+                "start_time": start,
+                "timeout": self.visibility_timeout,
+            }
+
+            self.process_message(packed_message)
+
+    def process_message(self, packed_message):
+
+        message = packed_message['message']
+        queue_url = packed_message['queue']
+        fetch_time = packed_message['start_time']
+        timeout = packed_message['timeout']
+        message_body = decode_message(message)
+        full_task_path = message_body['task']
+        args = message_body['args']
+        kwargs = message_body['kwargs']
+
+        task_name = full_task_path.split(".")[-1]
+        task_path = ".".join(full_task_path.split(".")[:-1])
+
+        task_module = importlib.import_module(task_path)
+
+        task = getattr(task_module, task_name)
+
+        pre_process_context = {
+            "task_name": task_name,
+            "args": args,
+            "kwargs": kwargs,
+            "full_task_path": full_task_path,
+            "fetch_time": fetch_time,
+            "queue_url": queue_url,
+            "timeout": timeout
+        }
+
+        # Modify the contexts separately so the original
+        # context isn't modified by later processing
+        post_process_context = copy.copy(pre_process_context)
+
+        current_time = time.time()
+        if int(current_time - fetch_time) >= timeout:
+            logger.warning(
+                "Discarding task {} with args: {} and kwargs: {} due to "
+                "exceeding visibility timeout".format(  # noqa
+                    full_task_path,
+                    repr(args),
+                    repr(kwargs),
+                )
+            )
+            self.messages_processed += 1
+
+        start_time = time.time()
+
+        try:
+            self._run_hooks("pre_process", pre_process_context)
+            task(*args, **kwargs)
+        except Exception:
+            end_time = time.time()
+            logger.exception(
+                "Task {} raised error in {:.4f} seconds: with args: {} "
+                "and kwargs: {}: {}".format(
+                    full_task_path,
+                    end_time - start_time,
+                    args,
+                    kwargs,
+                    traceback.format_exc(),
+                )
+            )
+            post_process_context["status"] = "exception"
+            post_process_context["exception"] = traceback.format_exc()
+            self._run_hooks("post_process", post_process_context)
+            self.messages_processed += 1
+        else:
+            end_time = time.time()
+            self._get_connection().delete_message(
+                QueueUrl=queue_url,
+                ReceiptHandle=message['ReceiptHandle']
+            )
+            logger.info(
+                "Processed task {} in {:.4f} seconds with args: {} "
+                "and kwargs: {}".format(
+                    full_task_path,
+                    end_time - start_time,
+                    repr(args),
+                    repr(kwargs),
+                )
+            )
+            post_process_context["status"] = "success"
+            self._run_hooks("post_process", post_process_context)
+        self.messages_processed += 1
+
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
+
+
 class ManagerWorker(object):
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
