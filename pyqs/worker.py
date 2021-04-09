@@ -314,18 +314,6 @@ class SimpleProcessWorker(BaseWorker):
         start = time.time()
 
         for message in messages:
-            end = time.time()
-            if int(end - start) >= self.visibility_timeout:
-                # Don't add any more messages since they have
-                # re-appeared in the sqs queue Instead just reset and get
-                # fresh messages from the sqs queue
-                msg = (
-                    "Clearing Local messages since we exceeded "
-                    "their visibility_timeout"
-                )
-                logger.warning(msg)
-                break
-
             packed_message = {
                 "queue": self.queue_url,
                 "message": message,
@@ -366,18 +354,6 @@ class SimpleProcessWorker(BaseWorker):
         # Modify the contexts separately so the original
         # context isn't modified by later processing
         post_process_context = copy.copy(pre_process_context)
-
-        current_time = time.time()
-        if int(current_time - fetch_time) >= timeout:
-            logger.warning(
-                "Discarding task {} with args: {} and kwargs: {} due to "
-                "exceeding visibility timeout".format(  # noqa
-                    full_task_path,
-                    repr(args),
-                    repr(kwargs),
-                )
-            )
-            self.messages_processed += 1
 
         start_time = time.time()
 
