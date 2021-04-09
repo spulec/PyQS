@@ -13,6 +13,20 @@ from . import __version__
 logger = logging.getLogger("pyqs")
 
 
+def _set_batchsize(args):
+    batchsize = args.batchsize
+    if batchsize:
+        return batchsize
+
+    simple_worker = args.simple_worker
+    if simple_worker:
+        # Default batchsize for SimpleProcessWorker
+        return 1
+
+    # Default batchsize for ProcessWorker
+    return 10
+
+
 def main():
     parser = ArgumentParser(description="""
 Run PyQS workers for the given queues
@@ -90,7 +104,7 @@ Run PyQS workers for the given queues
         "--batchsize",
         dest="batchsize",
         type=int,
-        default=10,
+        default=None,
         help='How many messages to download at a time from SQS.',
         action="store",
     )
@@ -124,7 +138,7 @@ Run PyQS workers for the given queues
         access_key_id=args.access_key_id,
         secret_access_key=args.secret_access_key,
         interval=args.interval,
-        batchsize=args.batchsize,
+        batchsize=_set_batchsize(args),
         prefetch_multiplier=args.prefetch_multiplier,
         simple_worker=args.simple_worker
     )
