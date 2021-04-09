@@ -7,10 +7,13 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from .worker import ManagerWorker, SimpleManagerWorker
+from .worker import ManagerWorker, BaseManager
 from . import __version__
 
 logger = logging.getLogger("pyqs")
+
+SIMPLE_WORKER_DEFAULT_BATCH_SIZE = 1
+DEFAULT_BATCH_SIZE = 10
 
 
 def _set_batchsize(args):
@@ -21,10 +24,10 @@ def _set_batchsize(args):
     simple_worker = args.simple_worker
     if simple_worker:
         # Default batchsize for SimpleProcessWorker
-        return 1
+        return SIMPLE_WORKER_DEFAULT_BATCH_SIZE
 
     # Default batchsize for ProcessWorker
-    return 10
+    return DEFAULT_BATCH_SIZE
 
 
 def main():
@@ -152,7 +155,7 @@ def _add_cwd_to_path():
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region=None, access_key_id=None, secret_access_key=None,
-          interval=1, batchsize=10, prefetch_multiplier=2,
+          interval=1, batchsize=DEFAULT_BATCH_SIZE, prefetch_multiplier=2,
           simple_worker=False):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",
@@ -161,7 +164,7 @@ def _main(queue_prefixes, concurrency=5, logging_level="WARN",
     logger.info("Starting PyQS version {}".format(__version__))
 
     if simple_worker:
-        manager = SimpleManagerWorker(
+        manager = BaseManager(
             queue_prefixes, concurrency, batchsize,
             region=region, access_key_id=access_key_id,
             secret_access_key=secret_access_key,
