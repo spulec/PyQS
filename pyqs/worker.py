@@ -445,18 +445,7 @@ class BaseManager(object):
         return matching_urls
 
     def check_for_new_queues(self):
-        queue_urls = self.get_queue_urls_from_queue_prefixes(
-            self.queue_prefixes)
-        new_queue_urls = set(queue_urls) - set(self.queue_urls)
-        for new_queue_url in new_queue_urls:
-            logger.info("Found new queue\t{}".format(new_queue_url))
-            worker = SimpleProcessWorker(
-                new_queue_url, self.batchsize,
-                connection_args=self.connection_args,
-                parent_id=self._pid,
-            )
-            worker.start()
-            self.worker_children.append(worker)
+        raise NotImplementedError
 
     def start(self):
         for child in self.worker_children:
@@ -500,21 +489,6 @@ class BaseManager(object):
     def replace_workers(self):
         self._replace_worker_children()
 
-    def _replace_worker_children(self):
-        for index, worker in enumerate(self.worker_children):
-            if not worker.is_alive():
-                logger.info(
-                    "Worker Process {} is no longer responding, "
-                    "spawning a new worker.".format(worker.pid))
-                self.worker_children.pop(index)
-                worker = SimpleProcessWorker(
-                    worker.queue_url, self.batchsize,
-                    connection_args=self.connection_args,
-                    parent_id=self._pid,
-                )
-                worker.start()
-                self.worker_children.append(worker)
-
 
 class SimpleManagerWorker(BaseManager):
 
@@ -537,6 +511,35 @@ class SimpleManagerWorker(BaseManager):
                         parent_id=self._pid,
                     )
                 )
+
+    def check_for_new_queues(self):
+        queue_urls = self.get_queue_urls_from_queue_prefixes(
+            self.queue_prefixes)
+        new_queue_urls = set(queue_urls) - set(self.queue_urls)
+        for new_queue_url in new_queue_urls:
+            logger.info("Found new queue\t{}".format(new_queue_url))
+            worker = SimpleProcessWorker(
+                new_queue_url, self.batchsize,
+                connection_args=self.connection_args,
+                parent_id=self._pid,
+            )
+            worker.start()
+            self.worker_children.append(worker)
+
+    def _replace_worker_children(self):
+        for index, worker in enumerate(self.worker_children):
+            if not worker.is_alive():
+                logger.info(
+                    "Worker Process {} is no longer responding, "
+                    "spawning a new worker.".format(worker.pid))
+                self.worker_children.pop(index)
+                worker = SimpleProcessWorker(
+                    worker.queue_url, self.batchsize,
+                    connection_args=self.connection_args,
+                    parent_id=self._pid,
+                )
+                worker.start()
+                self.worker_children.append(worker)
 
 
 class ManagerWorker(BaseManager):
