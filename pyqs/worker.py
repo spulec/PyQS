@@ -489,6 +489,9 @@ class BaseManager(object):
     def replace_workers(self):
         self._replace_worker_children()
 
+    def _replace_worker_children(self):
+        raise NotImplementedError
+
 
 class SimpleManagerWorker(BaseManager):
 
