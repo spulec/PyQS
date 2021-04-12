@@ -7,7 +7,7 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from .worker import ManagerWorker, BaseManager
+from .worker import ManagerWorker, SimpleManagerWorker
 from . import __version__
 
 logger = logging.getLogger("pyqs")
@@ -164,7 +164,7 @@ def _main(queue_prefixes, concurrency=5, logging_level="WARN",
     logger.info("Starting PyQS version {}".format(__version__))
 
     if simple_worker:
-        manager = BaseManager(
+        manager = SimpleManagerWorker(
             queue_prefixes, concurrency, batchsize,
             region=region, access_key_id=access_key_id,
             secret_access_key=secret_access_key,
