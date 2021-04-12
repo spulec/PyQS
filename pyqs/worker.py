@@ -481,9 +481,6 @@ class BaseManager(object):
         raise NotImplementedError
 
     def replace_workers(self):
-        self._replace_worker_children()
-
-    def _replace_worker_children(self):
         raise NotImplementedError
 
 
@@ -538,7 +535,7 @@ class SimpleManagerWorker(BaseManager):
         worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
         logger.debug("Worker Processes: {}".format(worker_count))
 
-    def _replace_worker_children(self):
+    def replace_workers(self):
         for index, worker in enumerate(self.worker_children):
             if not worker.is_alive():
                 logger.info(
