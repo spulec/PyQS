@@ -403,7 +403,7 @@ class SimpleProcessWorker(BaseWorker):
 
 class BaseManager(object):
 
-    def __init__(self, queue_prefixes, worker_concurrency, batchsize,
+    def __init__(self, queue_prefixes, batchsize,
                  region=None, access_key_id=None,
                  secret_access_key=None):
         self.connection_args = {
@@ -421,7 +421,6 @@ class BaseManager(object):
             self.queue_prefixes)
         self.worker_children = []
         self._pid = os.getpid()
-        self._initialize_worker_children(worker_concurrency)
         self._running = True
         self._register_signals()
 
@@ -429,17 +428,6 @@ class BaseManager(object):
         for SIG in [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT,
                     signal.SIGHUP]:
             self.register_shutdown_signal(SIG)
-
-    def _initialize_worker_children(self, number):
-        for queue_url in self.queue_urls:
-            for index in range(number):
-                self.worker_children.append(
-                    SimpleProcessWorker(
-                        queue_url, self.batchsize,
-                        connection_args=self.connection_args,
-                        parent_id=self._pid,
-                    )
-                )
 
     def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
         conn = get_conn(**self.connection_args)
@@ -528,39 +516,45 @@ class BaseManager(object):
                 self.worker_children.append(worker)
 
 
-class ManagerWorker(object):
+class SimpleManagerWorker(BaseManager):
+
+    def __init__(self, queue_prefixes, worker_concurrency, batchsize,
+                 region=None, access_key_id=None, secret_access_key=None):
+
+        super(SimpleManagerWorker, self).__init__(queue_prefixes, batchsize,
+                                                  region, access_key_id,
+                                                  secret_access_key)
+
+        self._initialize_worker_children(worker_concurrency)
+
+    def _initialize_worker_children(self, number):
+        for queue_url in self.queue_urls:
+            for index in range(number):
+                self.worker_children.append(
+                    SimpleProcessWorker(
+                        queue_url, self.batchsize,
+                        connection_args=self.connection_args,
+                        parent_id=self._pid,
+                    )
+                )
+
+
+class ManagerWorker(BaseManager):
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
                  prefetch_multiplier=2, region=None, access_key_id=None,
                  secret_access_key=None):
-        self.connection_args = {
-            "region": region,
-            "access_key_id": access_key_id,
-            "secret_access_key": secret_access_key,
-        }
-        self.batchsize = batchsize
-        if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
-            self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
-        if batchsize <= 0:
-            self.batchsize = 1
+
+        super(ManagerWorker, self).__init__(queue_prefixes, batchsize,
+                                            region, access_key_id,
+                                            secret_access_key)
         self.interval = interval
         self.prefetch_multiplier = prefetch_multiplier
-        self.queue_prefixes = queue_prefixes
-        self.queue_urls = self.get_queue_urls_from_queue_prefixes(
-            self.queue_prefixes)
-        self.setup_internal_queue(worker_concurrency)
         self.reader_children = []
-        self.worker_children = []
-        self._pid = os.getpid()
+
+        self.setup_internal_queue(worker_concurrency)
         self._initialize_reader_children()
         self._initialize_worker_children(worker_concurrency)
-        self._running = True
-        self._register_signals()
-
-    def _register_signals(self):
-        for SIG in [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT,
-                    signal.SIGHUP]:
-            self.register_shutdown_signal(SIG)
 
     def _initialize_reader_children(self):
         for queue_url in self.queue_urls:
@@ -581,21 +575,6 @@ class ManagerWorker(object):
                     parent_id=self._pid,
                 )
             )
-
-    def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
-        conn = get_conn(**self.connection_args)
-        queue_urls = conn.list_queues().get('QueueUrls', [])
-        matching_urls = []
-
-        logger.info("Loading Queues:")
-        for prefix in queue_prefixes:
-            logger.info("[Queue]\t{}".format(prefix))
-            matching_urls.extend([
-                queue_url for queue_url in queue_urls if
-                fnmatch.fnmatch(queue_url.rsplit("/", 1)[1], prefix)
-            ])
-        logger.info("Found matching SQS Queues: {}".format(matching_urls))
-        return matching_urls
 
     def check_for_new_queues(self):
         queue_urls = self.get_queue_urls_from_queue_prefixes(
@@ -631,31 +610,6 @@ class ManagerWorker(object):
             child.shutdown()
         for child in self.worker_children:
             child.join()
-
-    def sleep(self):
-        counter = 0
-        while self._running:
-            counter = counter + 1
-            if counter % 1000 == 0:
-                self.process_counts()
-                self.replace_workers()
-            if counter % 30000 == 0:
-                counter = 0
-                self.check_for_new_queues()
-            time.sleep(0.001)
-        self._exit()
-
-    def register_shutdown_signal(self, SIG):
-        signal.signal(SIG, self._graceful_shutdown)
-
-    def _graceful_shutdown(self, signum, frame):
-        logger.info('Received shutdown signal %s', signum)
-        self._running = False
-
-    def _exit(self):
-        logger.info('Graceful shutdown. Sending shutdown signal to children.')
-        self.stop()
-        sys.exit(0)
 
     def process_counts(self):
         reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
