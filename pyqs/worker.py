@@ -419,7 +419,6 @@ class BaseManager(object):
         self.queue_prefixes = queue_prefixes
         self.queue_urls = self.get_queue_urls_from_queue_prefixes(
             self.queue_prefixes)
-        self.worker_children = []
         self._pid = os.getpid()
         self._running = True
         self._register_signals()
@@ -448,14 +447,10 @@ class BaseManager(object):
         raise NotImplementedError
 
     def start(self):
-        for child in self.worker_children:
-            child.start()
+        raise NotImplementedError
 
     def stop(self):
-        for child in self.worker_children:
-            child.shutdown()
-        for child in self.worker_children:
-            child.join()
+        raise NotImplementedError
 
     def sleep(self):
         counter = 0
@@ -483,8 +478,7 @@ class BaseManager(object):
         sys.exit(0)
 
     def process_counts(self):
-        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
-        logger.debug("Worker Processes: {}".format(worker_count))
+        raise NotImplementedError
 
     def replace_workers(self):
         self._replace_worker_children()
@@ -502,6 +496,7 @@ class SimpleManagerWorker(BaseManager):
                                                   region, access_key_id,
                                                   secret_access_key)
 
+        self.worker_children = []
         self._initialize_worker_children(worker_concurrency)
 
     def _initialize_worker_children(self, number):
@@ -528,6 +523,20 @@ class SimpleManagerWorker(BaseManager):
             )
             worker.start()
             self.worker_children.append(worker)
+
+    def start(self):
+        for child in self.worker_children:
+            child.start()
+
+    def stop(self):
+        for child in self.worker_children:
+            child.shutdown()
+        for child in self.worker_children:
+            child.join()
+
+    def process_counts(self):
+        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
+        logger.debug("Worker Processes: {}".format(worker_count))
 
     def _replace_worker_children(self):
         for index, worker in enumerate(self.worker_children):
@@ -556,6 +565,7 @@ class ManagerWorker(BaseManager):
                                             secret_access_key)
         self.interval = interval
         self.prefetch_multiplier = prefetch_multiplier
+        self.worker_children = []
         self.reader_children = []
 
         self.setup_internal_queue(worker_concurrency)
