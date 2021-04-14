@@ -69,6 +69,11 @@ class BaseWorker(Process):
             return False
         return True
 
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
+
 
 class ReadWorker(BaseWorker):
 
@@ -261,11 +266,6 @@ class ProcessWorker(BaseWorker):
             self._run_hooks("post_process", post_process_context)
         return True
 
-    def _run_hooks(self, hook_name, context):
-        hooks = getattr(get_events(), hook_name)
-        for hook in hooks:
-            hook(context)
-
 
 class SimpleProcessWorker(BaseWorker):
 
@@ -394,11 +394,6 @@ class SimpleProcessWorker(BaseWorker):
             post_process_context["status"] = "success"
             self._run_hooks("post_process", post_process_context)
         self.messages_processed += 1
-
-    def _run_hooks(self, hook_name, context):
-        hooks = getattr(get_events(), hook_name)
-        for hook in hooks:
-            hook(context)
 
 
 class BaseManager(object):
