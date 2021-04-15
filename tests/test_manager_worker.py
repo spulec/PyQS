@@ -418,12 +418,12 @@ def test_master_shuts_down_busy_process_workers():
     try:
         # Try Python 2 Style
         thread = ThreadWithReturnValue2(
-            target=sleep_and_kill, args=(manager.reader_children[0].pid,))
+            target=sleep_and_kill, args=(manager.worker_children[0].pid,))
         thread.daemon = True
     except TypeError:
         # Use Python 3 Style
         thread = ThreadWithReturnValue3(
-            target=sleep_and_kill, args=(manager.reader_children[0].pid,),
+            target=sleep_and_kill, args=(manager.worker_children[0].pid,),
             daemon=True,
         )
 
