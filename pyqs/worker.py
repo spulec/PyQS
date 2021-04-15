@@ -237,8 +237,8 @@ class ProcessWorker(BaseWorker):
         # context isn't modified by later processing
         post_process_context = copy.copy(pre_process_context)
 
+        start_time = time.time()
         try:
-            start_time = time.time()
             self._run_hooks("pre_process", pre_process_context)
             task(*pre_process_context["args"], **pre_process_context["kwargs"])
         except Exception:
@@ -305,7 +305,22 @@ class SimpleProcessWorker(BaseWorker):
                 self.queue_url, os.getpid()))
 
         while not self.should_exit.is_set() and self.parent_is_alive():
-            self.read_message()
+            messages = self.read_message()
+            start = time.time()
+
+            for message in messages:
+                packed_message = {
+                    "queue": self.queue_url,
+                    "message": message,
+                    "start_time": start,
+                    "timeout": self.visibility_timeout,
+                }
+
+                processed = self.process_message(packed_message)
+
+                if processed:
+                    self.messages_processed += 1
+                    time.sleep(self.interval)
 
             if self.messages_processed \
                     >= self._messages_to_process_before_shutdown:
@@ -322,17 +337,7 @@ class SimpleProcessWorker(BaseWorker):
             "Successfully got {} messages from SQS queue {}".format(
                 len(messages), self.queue_url))  # noqa
 
-        start = time.time()
-
-        for message in messages:
-            packed_message = {
-                "queue": self.queue_url,
-                "message": message,
-                "start_time": start,
-                "timeout": self.visibility_timeout,
-            }
-
-            self.process_message(packed_message)
+        return messages
 
     def process_message(self, packed_message):
 
@@ -344,8 +349,8 @@ class SimpleProcessWorker(BaseWorker):
         # context isn't modified by later processing
         post_process_context = copy.copy(pre_process_context)
 
+        start_time = time.time()
         try:
-            start_time = time.time()
             self._run_hooks("pre_process", pre_process_context)
             task(*pre_process_context["args"], **pre_process_context["kwargs"])
         except Exception:
@@ -363,7 +368,7 @@ class SimpleProcessWorker(BaseWorker):
             post_process_context["status"] = "exception"
             post_process_context["exception"] = traceback.format_exc()
             self._run_hooks("post_process", post_process_context)
-            self.messages_processed += 1
+            return True
         else:
             end_time = time.time()
             self._get_connection().delete_message(
@@ -381,7 +386,7 @@ class SimpleProcessWorker(BaseWorker):
             )
             post_process_context["status"] = "success"
             self._run_hooks("post_process", post_process_context)
-        self.messages_processed += 1
+        return True
 
 
 class BaseManager(object):
