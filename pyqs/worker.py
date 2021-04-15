@@ -279,7 +279,7 @@ class ProcessWorker(BaseWorker):
 
 class SimpleProcessWorker(BaseWorker):
 
-    def __init__(self, queue_url, batchsize,
+    def __init__(self, queue_url, interval, batchsize,
                  connection_args=None, *args, **kwargs):
         super(SimpleProcessWorker, self).__init__(*args, **kwargs)
         if connection_args is None:
@@ -291,6 +291,7 @@ class SimpleProcessWorker(BaseWorker):
             QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
         self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
 
+        self.interval = interval
         self.batchsize = batchsize
         self._messages_to_process_before_shutdown = 100
         self.messages_processed = 0
@@ -385,7 +386,7 @@ class SimpleProcessWorker(BaseWorker):
 
 class BaseManager(object):
 
-    def __init__(self, queue_prefixes, batchsize,
+    def __init__(self, queue_prefixes, interval, batchsize,
                  region=None, access_key_id=None,
                  secret_access_key=None):
         self.connection_args = {
@@ -393,6 +394,7 @@ class BaseManager(object):
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
         }
+        self.interval = interval
         self.batchsize = batchsize
         if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
             self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
@@ -468,11 +470,12 @@ class BaseManager(object):
 
 class SimpleManagerWorker(BaseManager):
 
-    def __init__(self, queue_prefixes, worker_concurrency, batchsize,
+    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
                  region=None, access_key_id=None, secret_access_key=None):
 
-        super(SimpleManagerWorker, self).__init__(queue_prefixes, batchsize,
-                                                  region, access_key_id,
+        super(SimpleManagerWorker, self).__init__(queue_prefixes, interval,
+                                                  batchsize, region,
+                                                  access_key_id,
                                                   secret_access_key)
 
         self.worker_children = []
@@ -483,7 +486,7 @@ class SimpleManagerWorker(BaseManager):
             for index in range(number):
                 self.worker_children.append(
                     SimpleProcessWorker(
-                        queue_url, self.batchsize,
+                        queue_url, self.interval, self.batchsize,
                         connection_args=self.connection_args,
                         parent_id=self._pid,
                     )
@@ -496,7 +499,7 @@ class SimpleManagerWorker(BaseManager):
         for new_queue_url in new_queue_urls:
             logger.info("Found new queue\t{}".format(new_queue_url))
             worker = SimpleProcessWorker(
-                new_queue_url, self.batchsize,
+                new_queue_url, self.interval, self.batchsize,
                 connection_args=self.connection_args,
                 parent_id=self._pid,
             )
@@ -525,7 +528,7 @@ class SimpleManagerWorker(BaseManager):
                     "spawning a new worker.".format(worker.pid))
                 self.worker_children.pop(index)
                 worker = SimpleProcessWorker(
-                    worker.queue_url, self.batchsize,
+                    worker.queue_url, self.interval, self.batchsize,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
                 )
@@ -539,10 +542,11 @@ class ManagerWorker(BaseManager):
                  prefetch_multiplier=2, region=None, access_key_id=None,
                  secret_access_key=None):
 
-        super(ManagerWorker, self).__init__(queue_prefixes, batchsize,
-                                            region, access_key_id,
+        super(ManagerWorker, self).__init__(queue_prefixes, interval,
+                                            batchsize, region,
+                                            access_key_id,
                                             secret_access_key)
-        self.interval = interval
+
         self.prefetch_multiplier = prefetch_multiplier
         self.worker_children = []
         self.reader_children = []

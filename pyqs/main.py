@@ -165,7 +165,7 @@ def _main(queue_prefixes, concurrency=5, logging_level="WARN",
 
     if simple_worker:
         manager = SimpleManagerWorker(
-            queue_prefixes, concurrency, batchsize,
+            queue_prefixes, concurrency, interval, batchsize,
             region=region, access_key_id=access_key_id,
             secret_access_key=secret_access_key,
         )
