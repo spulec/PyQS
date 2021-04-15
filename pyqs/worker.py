@@ -189,22 +189,24 @@ class ProcessWorker(BaseWorker):
         self.internal_queue = internal_queue
         self.interval = interval
         self._messages_to_process_before_shutdown = 100
+        self.messages_processed = 0
 
     def run(self):
         # Set the child process to not receive any keyboard interrupts
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
-        messages_processed = 0
+
         while not self.should_exit.is_set() and self.parent_is_alive():
             processed = self.process_message()
             if processed:
-                messages_processed += 1
+                self.messages_processed += 1
                 time.sleep(self.interval)
             else:
                 # If we have no messages wait a moment before rechecking.
                 time.sleep(0.001)
-            if messages_processed >= self._messages_to_process_before_shutdown:
+            if self.messages_processed \
+                    >= self._messages_to_process_before_shutdown:
                 self.shutdown()
 
     def process_message(self):
