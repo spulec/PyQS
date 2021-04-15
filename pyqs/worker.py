@@ -69,84 +69,6 @@ class BaseWorker(Process):
             return False
         return True
 
-    def _run_hooks(self, hook_name, context):
-        hooks = getattr(get_events(), hook_name)
-        for hook in hooks:
-            hook(context)
-
-    def _create_pre_process_context(self, packed_message):
-        message = packed_message['message']
-        message_body = decode_message(message)
-        full_task_path = message_body['task']
-
-        pre_process_context = {
-            "task_name": full_task_path.split(".")[-1],
-            "args": message_body['args'],
-            "kwargs": message_body['kwargs'],
-            "full_task_path": full_task_path,
-            "fetch_time": packed_message['start_time'],
-            "queue_url": packed_message['queue'],
-            "timeout": packed_message['timeout'],
-            "receipt_handle": message['ReceiptHandle']
-        }
-
-        return pre_process_context
-
-    def _get_task(self, full_task_path):
-
-        task_name = full_task_path.split(".")[-1]
-        task_path = ".".join(full_task_path.split(".")[:-1])
-        task_module = importlib.import_module(task_path)
-        task = getattr(task_module, task_name)
-
-        return task
-
-    def _process_task(self, pre_process_context):
-        task = self._get_task(pre_process_context["full_task_path"])
-
-        # Modify the contexts separately so the original
-        # context isn't modified by later processing
-        post_process_context = copy.copy(pre_process_context)
-
-        start_time = time.time()
-        try:
-            self._run_hooks("pre_process", pre_process_context)
-            task(*pre_process_context["args"], **pre_process_context["kwargs"])
-        except Exception:
-            end_time = time.time()
-            logger.exception(
-                "Task {} raised error in {:.4f} seconds: with args: {} "
-                "and kwargs: {}: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                    traceback.format_exc(),
-                )
-            )
-            post_process_context["status"] = "exception"
-            post_process_context["exception"] = traceback.format_exc()
-            self._run_hooks("post_process", post_process_context)
-            return True
-        else:
-            end_time = time.time()
-            self._get_connection().delete_message(
-                QueueUrl=pre_process_context["queue_url"],
-                ReceiptHandle=pre_process_context["receipt_handle"]
-            )
-            logger.info(
-                "Processed task {} in {:.4f} seconds with args: {} "
-                "and kwargs: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                )
-            )
-            post_process_context["status"] = "success"
-            self._run_hooks("post_process", post_process_context)
-        return True
-
 
 class ReadWorker(BaseWorker):
 
@@ -226,7 +148,90 @@ class ReadWorker(BaseWorker):
                         self.queue_url, message_body))  # noqa
 
 
-class ProcessWorker(BaseWorker):
+class BaseProcessWorker(BaseWorker):
+    def __init__(self, *args, **kwargs):
+        super(BaseProcessWorker, self).__init__(*args, **kwargs)
+
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
+
+    def _create_pre_process_context(self, packed_message):
+        message = packed_message['message']
+        message_body = decode_message(message)
+        full_task_path = message_body['task']
+
+        pre_process_context = {
+            "task_name": full_task_path.split(".")[-1],
+            "args": message_body['args'],
+            "kwargs": message_body['kwargs'],
+            "full_task_path": full_task_path,
+            "fetch_time": packed_message['start_time'],
+            "queue_url": packed_message['queue'],
+            "timeout": packed_message['timeout'],
+            "receipt_handle": message['ReceiptHandle']
+        }
+
+        return pre_process_context
+
+    def _get_task(self, full_task_path):
+
+        task_name = full_task_path.split(".")[-1]
+        task_path = ".".join(full_task_path.split(".")[:-1])
+        task_module = importlib.import_module(task_path)
+        task = getattr(task_module, task_name)
+
+        return task
+
+    def _process_task(self, pre_process_context):
+        task = self._get_task(pre_process_context["full_task_path"])
+
+        # Modify the contexts separately so the original
+        # context isn't modified by later processing
+        post_process_context = copy.copy(pre_process_context)
+
+        start_time = time.time()
+        try:
+            self._run_hooks("pre_process", pre_process_context)
+            task(*pre_process_context["args"], **pre_process_context["kwargs"])
+        except Exception:
+            end_time = time.time()
+            logger.exception(
+                "Task {} raised error in {:.4f} seconds: with args: {} "
+                "and kwargs: {}: {}".format(
+                    pre_process_context["full_task_path"],
+                    end_time - start_time,
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
+                    traceback.format_exc(),
+                )
+            )
+            post_process_context["status"] = "exception"
+            post_process_context["exception"] = traceback.format_exc()
+            self._run_hooks("post_process", post_process_context)
+            return True
+        else:
+            end_time = time.time()
+            self._get_connection().delete_message(
+                QueueUrl=pre_process_context["queue_url"],
+                ReceiptHandle=pre_process_context["receipt_handle"]
+            )
+            logger.info(
+                "Processed task {} in {:.4f} seconds with args: {} "
+                "and kwargs: {}".format(
+                    pre_process_context["full_task_path"],
+                    end_time - start_time,
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
+                )
+            )
+            post_process_context["status"] = "success"
+            self._run_hooks("post_process", post_process_context)
+        return True
+
+
+class ProcessWorker(BaseProcessWorker):
 
     def __init__(self, internal_queue, interval, connection_args=None, *args,
                  **kwargs):
@@ -280,7 +285,7 @@ class ProcessWorker(BaseWorker):
         return self._process_task(pre_process_context)
 
 
-class SimpleProcessWorker(BaseWorker):
+class SimpleProcessWorker(BaseProcessWorker):
 
     def __init__(self, queue_url, interval, batchsize,
                  connection_args=None, *args, **kwargs):
