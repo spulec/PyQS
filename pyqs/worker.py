@@ -101,6 +101,52 @@ class BaseWorker(Process):
 
         return task
 
+    def _process_task(self, pre_process_context):
+        task = self._get_task(pre_process_context["full_task_path"])
+
+        # Modify the contexts separately so the original
+        # context isn't modified by later processing
+        post_process_context = copy.copy(pre_process_context)
+
+        start_time = time.time()
+        try:
+            self._run_hooks("pre_process", pre_process_context)
+            task(*pre_process_context["args"], **pre_process_context["kwargs"])
+        except Exception:
+            end_time = time.time()
+            logger.exception(
+                "Task {} raised error in {:.4f} seconds: with args: {} "
+                "and kwargs: {}: {}".format(
+                    pre_process_context["full_task_path"],
+                    end_time - start_time,
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
+                    traceback.format_exc(),
+                )
+            )
+            post_process_context["status"] = "exception"
+            post_process_context["exception"] = traceback.format_exc()
+            self._run_hooks("post_process", post_process_context)
+            return True
+        else:
+            end_time = time.time()
+            self._get_connection().delete_message(
+                QueueUrl=pre_process_context["queue_url"],
+                ReceiptHandle=pre_process_context["receipt_handle"]
+            )
+            logger.info(
+                "Processed task {} in {:.4f} seconds with args: {} "
+                "and kwargs: {}".format(
+                    pre_process_context["full_task_path"],
+                    end_time - start_time,
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
+                )
+            )
+            post_process_context["status"] = "success"
+            self._run_hooks("post_process", post_process_context)
+        return True
+
 
 class ReadWorker(BaseWorker):
 
@@ -231,50 +277,7 @@ class ProcessWorker(BaseWorker):
             )
             return True
 
-        task = self._get_task(pre_process_context["full_task_path"])
-
-        # Modify the contexts separately so the original
-        # context isn't modified by later processing
-        post_process_context = copy.copy(pre_process_context)
-
-        start_time = time.time()
-        try:
-            self._run_hooks("pre_process", pre_process_context)
-            task(*pre_process_context["args"], **pre_process_context["kwargs"])
-        except Exception:
-            end_time = time.time()
-            logger.exception(
-                "Task {} raised error in {:.4f} seconds: with args: {} "
-                "and kwargs: {}: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                    traceback.format_exc(),
-                )
-            )
-            post_process_context["status"] = "exception"
-            post_process_context["exception"] = traceback.format_exc()
-            self._run_hooks("post_process", post_process_context)
-            return True
-        else:
-            end_time = time.time()
-            self._get_connection().delete_message(
-                QueueUrl=pre_process_context["queue_url"],
-                ReceiptHandle=pre_process_context["receipt_handle"]
-            )
-            logger.info(
-                "Processed task {} in {:.4f} seconds with args: {} "
-                "and kwargs: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                )
-            )
-            post_process_context["status"] = "success"
-            self._run_hooks("post_process", post_process_context)
-        return True
+        return self._process_task(pre_process_context)
 
 
 class SimpleProcessWorker(BaseWorker):
@@ -343,50 +346,7 @@ class SimpleProcessWorker(BaseWorker):
 
         pre_process_context = self._create_pre_process_context(packed_message)
 
-        task = self._get_task(pre_process_context["full_task_path"])
-
-        # Modify the contexts separately so the original
-        # context isn't modified by later processing
-        post_process_context = copy.copy(pre_process_context)
-
-        start_time = time.time()
-        try:
-            self._run_hooks("pre_process", pre_process_context)
-            task(*pre_process_context["args"], **pre_process_context["kwargs"])
-        except Exception:
-            end_time = time.time()
-            logger.exception(
-                "Task {} raised error in {:.4f} seconds: with args: {} "
-                "and kwargs: {}: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                    traceback.format_exc(),
-                )
-            )
-            post_process_context["status"] = "exception"
-            post_process_context["exception"] = traceback.format_exc()
-            self._run_hooks("post_process", post_process_context)
-            return True
-        else:
-            end_time = time.time()
-            self._get_connection().delete_message(
-                QueueUrl=pre_process_context["queue_url"],
-                ReceiptHandle=pre_process_context["receipt_handle"]
-            )
-            logger.info(
-                "Processed task {} in {:.4f} seconds with args: {} "
-                "and kwargs: {}".format(
-                    pre_process_context["full_task_path"],
-                    end_time - start_time,
-                    pre_process_context["args"],
-                    pre_process_context["kwargs"],
-                )
-            )
-            post_process_context["status"] = "success"
-            self._run_hooks("post_process", post_process_context)
-        return True
+        return self._process_task(pre_process_context)
 
 
 class BaseManager(object):
