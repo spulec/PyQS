@@ -108,14 +108,35 @@ def test_real_main_method(ArgumentParser, _main):
     Test parsing of arguments from main method
     """
     ArgumentParser.return_value.parse_args.return_value = Mock(
-        concurrency=3, queues=["email1"], interval=1, batchsize=10,
+        concurrency=3, queues=["email1"], interval=1, batchsize=5,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
     )
     main()
 
     _main.assert_called_once_with(
-        queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=10,
+        queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=5,
+        logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
+        access_key_id=None, secret_access_key=None, simple_worker=True,
+    )
+
+
+@patch("pyqs.main._main")
+@patch("pyqs.main.ArgumentParser")
+@mock_sqs
+def test_real_main_method_default_batchsize(ArgumentParser, _main):
+    """
+    Test parsing of arguments from main method batch default
+    """
+    ArgumentParser.return_value.parse_args.return_value = Mock(
+        concurrency=3, queues=["email1"], interval=1, batchsize=None,
+        logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
+        access_key_id=None, secret_access_key=None, simple_worker=True,
+    )
+    main()
+
+    _main.assert_called_once_with(
+        queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=1,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
     )
@@ -313,10 +334,10 @@ def test_master_shuts_down_busy_process_workers():
     # Stop the Master Process
     manager.stop()
 
-    # Check if we had to kill the Reader Worker or it exited gracefully
+    # Check if we had to kill the Process Worker or it exited gracefully
     return_value = thread.join()
     if not return_value:
-        raise Exception("Reader Worker failed to quit!")
+        raise Exception("Process Worker failed to quit!")
 
 
 @mock_sqs
