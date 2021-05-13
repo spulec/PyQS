@@ -439,12 +439,12 @@ def test_master_shuts_down_busy_process_workers():
     try:
         # Try Python 2 Style
         thread = ThreadWithReturnValue2(
-            target=sleep_and_kill, args=(manager.worker_children[0].pid,))
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,))
         thread.daemon = True
     except TypeError:
         # Use Python 3 Style
         thread = ThreadWithReturnValue3(
-            target=sleep_and_kill, args=(manager.worker_children[0].pid,),
+            target=sleep_and_kill, args=(manager.reader_children[0].pid,),
             daemon=True,
         )
 
@@ -453,10 +453,10 @@ def test_master_shuts_down_busy_process_workers():
     # Stop the Master Process
     manager.stop()
 
-    # Check if we had to kill the Process Worker or it exited gracefully
+    # Check if we had to kill the Reader Worker or it exited gracefully
     return_value = thread.join()
     if not return_value:
-        raise Exception("Process Worker failed to quit!")
+        raise Exception("Reader Worker failed to quit!")
 
 
 @mock_sqs
