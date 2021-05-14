@@ -7,10 +7,27 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from .worker import ManagerWorker
+from .worker import ManagerWorker, SimpleManagerWorker
 from . import __version__
 
 logger = logging.getLogger("pyqs")
+
+SIMPLE_WORKER_DEFAULT_BATCH_SIZE = 1
+DEFAULT_BATCH_SIZE = 10
+
+
+def _set_batchsize(args):
+    batchsize = args.batchsize
+    if batchsize:
+        return batchsize
+
+    simple_worker = args.simple_worker
+    if simple_worker:
+        # Default batchsize for SimpleProcessWorker
+        return SIMPLE_WORKER_DEFAULT_BATCH_SIZE
+
+    # Default batchsize for ProcessWorker
+    return DEFAULT_BATCH_SIZE
 
 
 def main():
@@ -90,7 +107,7 @@ Run PyQS workers for the given queues
         "--batchsize",
         dest="batchsize",
         type=int,
-        default=10,
+        default=None,
         help='How many messages to download at a time from SQS.',
         action="store",
     )
@@ -107,6 +124,13 @@ Run PyQS workers for the given queues
         action="store",
     )
 
+    parser.add_argument(
+        '--simple-worker',
+        dest='simple_worker',
+        default=False,
+        action='store_true'
+    )
+
     args = parser.parse_args()
 
     _main(
@@ -117,8 +141,9 @@ Run PyQS workers for the given queues
         access_key_id=args.access_key_id,
         secret_access_key=args.secret_access_key,
         interval=args.interval,
-        batchsize=args.batchsize,
-        prefetch_multiplier=args.prefetch_multiplier
+        batchsize=_set_batchsize(args),
+        prefetch_multiplier=args.prefetch_multiplier,
+        simple_worker=args.simple_worker
     )
 
 
@@ -130,17 +155,27 @@ def _add_cwd_to_path():
 
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region=None, access_key_id=None, secret_access_key=None,
-          interval=1, batchsize=10, prefetch_multiplier=2):
+          interval=1, batchsize=DEFAULT_BATCH_SIZE, prefetch_multiplier=2,
+          simple_worker=False):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",
         level=getattr(logging, logging_level),
     )
     logger.info("Starting PyQS version {}".format(__version__))
-    manager = ManagerWorker(
-        queue_prefixes, concurrency, interval, batchsize,
-        prefetch_multiplier=prefetch_multiplier, region=region,
-        access_key_id=access_key_id, secret_access_key=secret_access_key,
-    )
+
+    if simple_worker:
+        manager = SimpleManagerWorker(
+            queue_prefixes, concurrency, interval, batchsize,
+            region=region, access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        )
+    else:
+        manager = ManagerWorker(
+            queue_prefixes, concurrency, interval, batchsize,
+            prefetch_multiplier=prefetch_multiplier, region=region,
+            access_key_id=access_key_id, secret_access_key=secret_access_key,
+        )
+
     _add_cwd_to_path()
     manager.start()
     manager.sleep()

@@ -148,93 +148,62 @@ class ReadWorker(BaseWorker):
                         self.queue_url, message_body))  # noqa
 
 
-class ProcessWorker(BaseWorker):
+class BaseProcessWorker(BaseWorker):
+    def __init__(self, *args, **kwargs):
+        super(BaseProcessWorker, self).__init__(*args, **kwargs)
 
-    def __init__(self, internal_queue, interval, connection_args=None, *args,
-                 **kwargs):
-        super(ProcessWorker, self).__init__(*args, **kwargs)
-        self.connection_args = connection_args
-        self.internal_queue = internal_queue
-        self.interval = interval
-        self._messages_to_process_before_shutdown = 100
+    def _run_hooks(self, hook_name, context):
+        hooks = getattr(get_events(), hook_name)
+        for hook in hooks:
+            hook(context)
 
-    def run(self):
-        # Set the child process to not receive any keyboard interrupts
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-        logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
-        messages_processed = 0
-        while not self.should_exit.is_set() and self.parent_is_alive():
-            processed = self.process_message()
-            if processed:
-                messages_processed += 1
-                time.sleep(self.interval)
-            else:
-                # If we have no messages wait a moment before rechecking.
-                time.sleep(0.001)
-            if messages_processed >= self._messages_to_process_before_shutdown:
-                self.shutdown()
-
-    def process_message(self):
-        try:
-            packed_message = self.internal_queue.get(timeout=0.5)
-        except Empty:
-            # Return False if we did not attempt to process any messages
-            return False
+    def _create_pre_process_context(self, packed_message):
         message = packed_message['message']
-        queue_url = packed_message['queue']
-        fetch_time = packed_message['start_time']
-        timeout = packed_message['timeout']
         message_body = decode_message(message)
         full_task_path = message_body['task']
-        args = message_body['args']
-        kwargs = message_body['kwargs']
+
+        pre_process_context = {
+            "task_name": full_task_path.split(".")[-1],
+            "args": message_body['args'],
+            "kwargs": message_body['kwargs'],
+            "full_task_path": full_task_path,
+            "fetch_time": packed_message['start_time'],
+            "queue_url": packed_message['queue'],
+            "timeout": packed_message['timeout'],
+            "receipt_handle": message['ReceiptHandle']
+        }
+
+        return pre_process_context
+
+    def _get_task(self, full_task_path):
 
         task_name = full_task_path.split(".")[-1]
         task_path = ".".join(full_task_path.split(".")[:-1])
-
         task_module = importlib.import_module(task_path)
-
         task = getattr(task_module, task_name)
 
-        pre_process_context = {
-            "task_name": task_name,
-            "args": args,
-            "kwargs": kwargs,
-            "full_task_path": full_task_path,
-            "fetch_time": fetch_time,
-            "queue_url": queue_url,
-            "timeout": timeout
-        }
+        return task
+
+    def _process_task(self, pre_process_context):
+        task = self._get_task(pre_process_context["full_task_path"])
 
         # Modify the contexts separately so the original
         # context isn't modified by later processing
         post_process_context = copy.copy(pre_process_context)
 
-        current_time = time.time()
-        if int(current_time - fetch_time) >= timeout:
-            logger.warning(
-                "Discarding task {} with args: {} and kwargs: {} due to "
-                "exceeding visibility timeout".format(  # noqa
-                    full_task_path,
-                    repr(args),
-                    repr(kwargs),
-                )
-            )
-            return True
+        start_time = time.time()
         try:
-            start_time = time.time()
             self._run_hooks("pre_process", pre_process_context)
-            task(*args, **kwargs)
+            task(*pre_process_context["args"], **pre_process_context["kwargs"])
         except Exception:
             end_time = time.time()
             logger.exception(
                 "Task {} raised error in {:.4f} seconds: with args: {} "
                 "and kwargs: {}: {}".format(
-                    full_task_path,
+                    pre_process_context["full_task_path"],
                     end_time - start_time,
-                    args,
-                    kwargs,
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
                     traceback.format_exc(),
                 )
             )
@@ -245,54 +214,166 @@ class ProcessWorker(BaseWorker):
         else:
             end_time = time.time()
             self._get_connection().delete_message(
-                QueueUrl=queue_url,
-                ReceiptHandle=message['ReceiptHandle']
+                QueueUrl=pre_process_context["queue_url"],
+                ReceiptHandle=pre_process_context["receipt_handle"]
             )
             logger.info(
                 "Processed task {} in {:.4f} seconds with args: {} "
                 "and kwargs: {}".format(
-                    full_task_path,
+                    pre_process_context["full_task_path"],
                     end_time - start_time,
-                    repr(args),
-                    repr(kwargs),
+                    pre_process_context["args"],
+                    pre_process_context["kwargs"],
                 )
             )
             post_process_context["status"] = "success"
             self._run_hooks("post_process", post_process_context)
         return True
 
-    def _run_hooks(self, hook_name, context):
-        hooks = getattr(get_events(), hook_name)
-        for hook in hooks:
-            hook(context)
+
+class ProcessWorker(BaseProcessWorker):
+
+    def __init__(self, internal_queue, interval, connection_args=None, *args,
+                 **kwargs):
+        super(ProcessWorker, self).__init__(*args, **kwargs)
+        self.connection_args = connection_args
+        self.internal_queue = internal_queue
+        self.interval = interval
+        self._messages_to_process_before_shutdown = 100
+        self.messages_processed = 0
+
+    def run(self):
+        # Set the child process to not receive any keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        logger.info("Running ProcessWorker, pid: {}".format(os.getpid()))
+
+        while not self.should_exit.is_set() and self.parent_is_alive():
+            processed = self.process_message()
+            if processed:
+                self.messages_processed += 1
+                time.sleep(self.interval)
+            else:
+                # If we have no messages wait a moment before rechecking.
+                time.sleep(0.001)
+            if self.messages_processed \
+                    >= self._messages_to_process_before_shutdown:
+                self.shutdown()
+
+    def process_message(self):
+        try:
+            packed_message = self.internal_queue.get(timeout=0.5)
+        except Empty:
+            # Return False if we did not attempt to process any messages
+            return False
+
+        pre_process_context = self._create_pre_process_context(packed_message)
+
+        current_time = time.time()
+        if int(current_time - pre_process_context["fetch_time"]) \
+                >= pre_process_context["timeout"]:
+            logger.warning(
+                "Discarding task {} with args: {} and kwargs: {} due to "
+                "exceeding visibility timeout".format(  # noqa
+                    pre_process_context["full_task_path"],
+                    repr(pre_process_context["args"]),
+                    repr(pre_process_context["kwargs"]),
+                )
+            )
+            return True
+
+        return self._process_task(pre_process_context)
 
 
-class ManagerWorker(object):
+class SimpleProcessWorker(BaseProcessWorker):
 
-    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
-                 prefetch_multiplier=2, region=None, access_key_id=None,
+    def __init__(self, queue_url, interval, batchsize,
+                 connection_args=None, *args, **kwargs):
+        super(SimpleProcessWorker, self).__init__(*args, **kwargs)
+        if connection_args is None:
+            connection_args = {}
+        self.connection_args = connection_args
+        self.queue_url = queue_url
+
+        sqs_queue = get_conn(**self.connection_args).get_queue_attributes(
+            QueueUrl=queue_url, AttributeNames=['All'])['Attributes']
+        self.visibility_timeout = int(sqs_queue['VisibilityTimeout'])
+
+        self.interval = interval
+        self.batchsize = batchsize
+        self._messages_to_process_before_shutdown = 100
+        self.messages_processed = 0
+
+    def run(self):
+        # Set the child process to not receive any keyboard interrupts
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        logger.info(
+            "Running SimpleProcessWorker: {}, pid: {}".format(
+                self.queue_url, os.getpid()))
+
+        while not self.should_exit.is_set() and self.parent_is_alive():
+            messages = self.read_message()
+            start = time.time()
+
+            for message in messages:
+                packed_message = {
+                    "queue": self.queue_url,
+                    "message": message,
+                    "start_time": start,
+                    "timeout": self.visibility_timeout,
+                }
+
+                processed = self.process_message(packed_message)
+
+                if processed:
+                    self.messages_processed += 1
+                    time.sleep(self.interval)
+
+            if self.messages_processed \
+                    >= self._messages_to_process_before_shutdown:
+                self.shutdown()
+
+    def read_message(self):
+        messages = self._get_connection().receive_message(
+            QueueUrl=self.queue_url,
+            MaxNumberOfMessages=self.batchsize,
+            WaitTimeSeconds=LONG_POLLING_INTERVAL,
+        ).get('Messages', [])
+
+        logger.debug(
+            "Successfully got {} messages from SQS queue {}".format(
+                len(messages), self.queue_url))  # noqa
+
+        return messages
+
+    def process_message(self, packed_message):
+
+        pre_process_context = self._create_pre_process_context(packed_message)
+
+        return self._process_task(pre_process_context)
+
+
+class BaseManager(object):
+
+    def __init__(self, queue_prefixes, interval, batchsize,
+                 region=None, access_key_id=None,
                  secret_access_key=None):
         self.connection_args = {
             "region": region,
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
         }
+        self.interval = interval
         self.batchsize = batchsize
         if batchsize > MESSAGE_DOWNLOAD_BATCH_SIZE:
             self.batchsize = MESSAGE_DOWNLOAD_BATCH_SIZE
         if batchsize <= 0:
             self.batchsize = 1
-        self.interval = interval
-        self.prefetch_multiplier = prefetch_multiplier
         self.queue_prefixes = queue_prefixes
         self.queue_urls = self.get_queue_urls_from_queue_prefixes(
             self.queue_prefixes)
-        self.setup_internal_queue(worker_concurrency)
-        self.reader_children = []
-        self.worker_children = []
         self._pid = os.getpid()
-        self._initialize_reader_children()
-        self._initialize_worker_children(worker_concurrency)
         self._running = True
         self._register_signals()
 
@@ -300,6 +381,149 @@ class ManagerWorker(object):
         for SIG in [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT,
                     signal.SIGHUP]:
             self.register_shutdown_signal(SIG)
+
+    def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
+        conn = get_conn(**self.connection_args)
+        queue_urls = conn.list_queues().get('QueueUrls', [])
+        matching_urls = []
+
+        logger.info("Loading Queues:")
+        for prefix in queue_prefixes:
+            logger.info("[Queue]\t{}".format(prefix))
+            matching_urls.extend([
+                queue_url for queue_url in queue_urls if
+                fnmatch.fnmatch(queue_url.rsplit("/", 1)[1], prefix)
+            ])
+        logger.info("Found matching SQS Queues: {}".format(matching_urls))
+        return matching_urls
+
+    def check_for_new_queues(self):
+        raise NotImplementedError
+
+    def start(self):
+        raise NotImplementedError
+
+    def stop(self):
+        raise NotImplementedError
+
+    def sleep(self):
+        counter = 0
+        while self._running:
+            counter = counter + 1
+            if counter % 1000 == 0:
+                self.process_counts()
+                self.replace_workers()
+            if counter % 30000 == 0:
+                counter = 0
+                self.check_for_new_queues()
+            time.sleep(0.001)
+        self._exit()
+
+    def register_shutdown_signal(self, SIG):
+        signal.signal(SIG, self._graceful_shutdown)
+
+    def _graceful_shutdown(self, signum, frame):
+        logger.info('Received shutdown signal %s', signum)
+        self._running = False
+
+    def _exit(self):
+        logger.info('Graceful shutdown. Sending shutdown signal to children.')
+        self.stop()
+        sys.exit(0)
+
+    def process_counts(self):
+        raise NotImplementedError
+
+    def replace_workers(self):
+        raise NotImplementedError
+
+
+class SimpleManagerWorker(BaseManager):
+
+    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
+                 region=None, access_key_id=None, secret_access_key=None):
+
+        super(SimpleManagerWorker, self).__init__(queue_prefixes, interval,
+                                                  batchsize, region,
+                                                  access_key_id,
+                                                  secret_access_key)
+
+        self.worker_children = []
+        self._initialize_worker_children(worker_concurrency)
+
+    def _initialize_worker_children(self, number):
+        for queue_url in self.queue_urls:
+            for index in range(number):
+                self.worker_children.append(
+                    SimpleProcessWorker(
+                        queue_url, self.interval, self.batchsize,
+                        connection_args=self.connection_args,
+                        parent_id=self._pid,
+                    )
+                )
+
+    def check_for_new_queues(self):
+        queue_urls = self.get_queue_urls_from_queue_prefixes(
+            self.queue_prefixes)
+        new_queue_urls = set(queue_urls) - set(self.queue_urls)
+        for new_queue_url in new_queue_urls:
+            logger.info("Found new queue\t{}".format(new_queue_url))
+            worker = SimpleProcessWorker(
+                new_queue_url, self.interval, self.batchsize,
+                connection_args=self.connection_args,
+                parent_id=self._pid,
+            )
+            worker.start()
+            self.worker_children.append(worker)
+
+    def start(self):
+        for child in self.worker_children:
+            child.start()
+
+    def stop(self):
+        for child in self.worker_children:
+            child.shutdown()
+        for child in self.worker_children:
+            child.join()
+
+    def process_counts(self):
+        worker_count = sum(map(lambda x: x.is_alive(), self.worker_children))
+        logger.debug("Worker Processes: {}".format(worker_count))
+
+    def replace_workers(self):
+        for index, worker in enumerate(self.worker_children):
+            if not worker.is_alive():
+                logger.info(
+                    "Worker Process {} is no longer responding, "
+                    "spawning a new worker.".format(worker.pid))
+                self.worker_children.pop(index)
+                worker = SimpleProcessWorker(
+                    worker.queue_url, self.interval, self.batchsize,
+                    connection_args=self.connection_args,
+                    parent_id=self._pid,
+                )
+                worker.start()
+                self.worker_children.append(worker)
+
+
+class ManagerWorker(BaseManager):
+
+    def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
+                 prefetch_multiplier=2, region=None, access_key_id=None,
+                 secret_access_key=None):
+
+        super(ManagerWorker, self).__init__(queue_prefixes, interval,
+                                            batchsize, region,
+                                            access_key_id,
+                                            secret_access_key)
+
+        self.prefetch_multiplier = prefetch_multiplier
+        self.worker_children = []
+        self.reader_children = []
+
+        self.setup_internal_queue(worker_concurrency)
+        self._initialize_reader_children()
+        self._initialize_worker_children(worker_concurrency)
 
     def _initialize_reader_children(self):
         for queue_url in self.queue_urls:
@@ -320,21 +544,6 @@ class ManagerWorker(object):
                     parent_id=self._pid,
                 )
             )
-
-    def get_queue_urls_from_queue_prefixes(self, queue_prefixes):
-        conn = get_conn(**self.connection_args)
-        queue_urls = conn.list_queues().get('QueueUrls', [])
-        matching_urls = []
-
-        logger.info("Loading Queues:")
-        for prefix in queue_prefixes:
-            logger.info("[Queue]\t{}".format(prefix))
-            matching_urls.extend([
-                queue_url for queue_url in queue_urls if
-                fnmatch.fnmatch(queue_url.rsplit("/", 1)[1], prefix)
-            ])
-        logger.info("Found matching SQS Queues: {}".format(matching_urls))
-        return matching_urls
 
     def check_for_new_queues(self):
         queue_urls = self.get_queue_urls_from_queue_prefixes(
@@ -370,31 +579,6 @@ class ManagerWorker(object):
             child.shutdown()
         for child in self.worker_children:
             child.join()
-
-    def sleep(self):
-        counter = 0
-        while self._running:
-            counter = counter + 1
-            if counter % 1000 == 0:
-                self.process_counts()
-                self.replace_workers()
-            if counter % 30000 == 0:
-                counter = 0
-                self.check_for_new_queues()
-            time.sleep(0.001)
-        self._exit()
-
-    def register_shutdown_signal(self, SIG):
-        signal.signal(SIG, self._graceful_shutdown)
-
-    def _graceful_shutdown(self, signum, frame):
-        logger.info('Received shutdown signal %s', signum)
-        self._running = False
-
-    def _exit(self):
-        logger.info('Graceful shutdown. Sending shutdown signal to children.')
-        self.stop()
-        sys.exit(0)
 
     def process_counts(self):
         reader_count = sum(map(lambda x: x.is_alive(), self.reader_children))
