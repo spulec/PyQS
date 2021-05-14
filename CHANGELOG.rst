@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+1.0.0
+~~~~~
+- Drop Py2 support
+- Add new SimpleProcessWorker (https://github.com/spulec/PyQS/pull/76)
+
 0.1.6
 ~~~~~
 
