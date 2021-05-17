@@ -100,6 +100,23 @@ messages.
 
     $ pyqs send_email --concurrency 10
 
+Simple Process Worker
+~~~~~~~~~~~~~~~~~~~~~
+
+To use a simpler version of PyQS that deals with some of the edge cases in the original implementation, pass the ``simple-worker`` flag.
+
+.. code:: bash
+
+    $ pyqs send_email --simple-worker
+
+The Simple Process Worker differs in the following way from the original implementation.
+
+* Does not use an internal queue and removes support for the ``prefetch-multiplier`` flag. This helps simply the mental model required, as messages are not on both the SQS queue and an internal queue.
+* When the ``simple-worker`` flag is passed, the default ``batchsize`` is 1 instead of 10. This is configurable.
+* Does not check the visibility timeout when reading or processing a message from SQS.
+    * Allowing the worker to process the message even past its visibility timeout means we solve the problem of never processing a message if ``max_receives=1`` and we incorrectly set a shorter visibility timeout and exceed the visibility timeout. Previously, this message would have ended up in the DLQ, if one was configured, and never actually processed.
+    * It increases the probability that we process a message more than once, especially if ``batchsize > 1``, but this can be solved by the developer checking if the message has already been processed.
+
 Hooks
 ~~~~~
 
