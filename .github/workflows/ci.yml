@@ -3,8 +3,10 @@ name: CI
 on: [push]
 
 jobs:
-  build_and_test:
+  test:
     runs-on: ubuntu-latest
+    env:
+      VIRTUAL_ENV: ignore
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
