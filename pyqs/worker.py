@@ -439,6 +439,7 @@ class BaseManager(object):
 
 
 class SimpleManagerWorker(BaseManager):
+    WORKER_CHILDREN_CLASS = SimpleProcessWorker
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
                  region=None, access_key_id=None, secret_access_key=None):
@@ -455,7 +456,7 @@ class SimpleManagerWorker(BaseManager):
         for queue_url in self.queue_urls:
             for index in range(number):
                 self.worker_children.append(
-                    SimpleProcessWorker(
+                    self.WORKER_CHILDREN_CLASS(
                         queue_url, self.interval, self.batchsize,
                         connection_args=self.connection_args,
                         parent_id=self._pid,
@@ -468,7 +469,7 @@ class SimpleManagerWorker(BaseManager):
         new_queue_urls = set(queue_urls) - set(self.queue_urls)
         for new_queue_url in new_queue_urls:
             logger.info("Found new queue\t{}".format(new_queue_url))
-            worker = SimpleProcessWorker(
+            worker = self.WORKER_CHILDREN_CLASS(
                 new_queue_url, self.interval, self.batchsize,
                 connection_args=self.connection_args,
                 parent_id=self._pid,
@@ -497,7 +498,7 @@ class SimpleManagerWorker(BaseManager):
                     "Worker Process {} is no longer responding, "
                     "spawning a new worker.".format(worker.pid))
                 self.worker_children.pop(index)
-                worker = SimpleProcessWorker(
+                worker = self.WORKER_CHILDREN_CLASS(
                     worker.queue_url, self.interval, self.batchsize,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
@@ -507,6 +508,7 @@ class SimpleManagerWorker(BaseManager):
 
 
 class ManagerWorker(BaseManager):
+    WORKER_CHILDREN_CLASS = ProcessWorker
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
                  prefetch_multiplier=2, region=None, access_key_id=None,
@@ -538,7 +540,7 @@ class ManagerWorker(BaseManager):
     def _initialize_worker_children(self, number):
         for index in range(number):
             self.worker_children.append(
-                ProcessWorker(
+                self.WORKER_CHILDREN_CLASS(
                     self.internal_queue, self.interval,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
@@ -613,7 +615,7 @@ class ManagerWorker(BaseManager):
                     "Worker Process {} is no longer responding, "
                     "spawning a new worker.".format(worker.pid))
                 self.worker_children.pop(index)
-                worker = ProcessWorker(
+                worker = self.WORKER_CHILDREN_CLASS(
                     self.internal_queue, self.interval,
                     connection_args=self.connection_args,
                     parent_id=self._pid,
