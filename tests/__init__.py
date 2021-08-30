@@ -1,1 +1,1 @@
-import sure  # flake8: noqa
+import sure  # noqa: F401
