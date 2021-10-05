@@ -40,6 +40,7 @@ def _add_message_to_internal_queue(task_name):
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
     # Add message to queue
     internal_queue = Queue()
@@ -184,6 +185,7 @@ def test_worker_processes_tasks_from_internal_queue():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to queue
@@ -276,6 +278,7 @@ def test_worker_processes_tasks_and_logs_correctly():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to internal queue
@@ -326,6 +329,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to internal queue
@@ -547,6 +551,7 @@ def test_worker_processes_shuts_down_after_processing_its_max_number_of_msgs(
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to internal queue
@@ -612,6 +617,7 @@ def test_worker_processes_discard_tasks_that_exceed_their_visibility_timeout():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to internal queue with timeout of 0 that started long ago
@@ -660,6 +666,7 @@ def test_worker_processes_only_incr_processed_counter_if_a_msg_was_processed():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     # Add message to internal queue

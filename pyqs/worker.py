@@ -163,6 +163,7 @@ class BaseProcessWorker(BaseWorker):
         full_task_path = message_body['task']
 
         pre_process_context = {
+            "message_id": message['MessageId'],
             "task_name": full_task_path.split(".")[-1],
             "args": message_body['args'],
             "kwargs": message_body['kwargs'],
