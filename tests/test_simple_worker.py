@@ -33,6 +33,7 @@ def _create_packed_message(task_name):
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     packed_message = {
@@ -200,6 +201,7 @@ def test_worker_processes_tasks_and_logs_warning_correctly():
             },
         }),
         "ReceiptHandle": "receipt-1234",
+        "MessageId": "message-id-1",
     }
 
     packed_message = {
