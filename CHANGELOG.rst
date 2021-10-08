@@ -1,6 +1,10 @@
 Changelog
 ---------
 
+1.0.1
+~~~~~
+- Add MessageId for tracking task executions
+
 1.0.0
 ~~~~~
 - Drop Py2 support
