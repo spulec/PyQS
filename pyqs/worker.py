@@ -27,14 +27,23 @@ LONG_POLLING_INTERVAL = 20
 logger = logging.getLogger("pyqs")
 
 
-def get_conn(region=None, access_key_id=None, secret_access_key=None):
-    if not region:
-        region = get_aws_region_name()
+def get_conn(
+    region=None, access_key_id=None, secret_access_key=None, endpoint_url=None
+):
+    kwargs = {
+        "aws_access_key_id": access_key_id,
+        "aws_secret_access_key": secret_access_key,
+        "region_name": region,
+    }
+
+    if endpoint_url:
+        kwargs["endpoint_url"] = endpoint_url
+    if not kwargs["region_name"]:
+        kwargs["region_name"] = get_aws_region_name()
 
     return boto3.client(
         "sqs",
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key, region_name=region,
+        **kwargs,
     )
 
 
@@ -359,11 +368,12 @@ class BaseManager(object):
 
     def __init__(self, queue_prefixes, interval, batchsize,
                  region=None, access_key_id=None,
-                 secret_access_key=None):
+                 secret_access_key=None, endpoint_url=None):
         self.connection_args = {
             "region": region,
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
+            "endpoint_url": endpoint_url,
         }
         self.interval = interval
         self.batchsize = batchsize
@@ -443,12 +453,14 @@ class SimpleManagerWorker(BaseManager):
     WORKER_CHILDREN_CLASS = SimpleProcessWorker
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
-                 region=None, access_key_id=None, secret_access_key=None):
+                 region=None, access_key_id=None, secret_access_key=None,
+                 endpoint_url=None):
 
         super(SimpleManagerWorker, self).__init__(queue_prefixes, interval,
                                                   batchsize, region,
                                                   access_key_id,
-                                                  secret_access_key)
+                                                  secret_access_key,
+                                                  endpoint_url)
 
         self.worker_children = []
         self._initialize_worker_children(worker_concurrency)
@@ -513,12 +525,13 @@ class ManagerWorker(BaseManager):
 
     def __init__(self, queue_prefixes, worker_concurrency, interval, batchsize,
                  prefetch_multiplier=2, region=None, access_key_id=None,
-                 secret_access_key=None):
+                 secret_access_key=None, endpoint_url=None):
 
         super(ManagerWorker, self).__init__(queue_prefixes, interval,
                                             batchsize, region,
                                             access_key_id,
-                                            secret_access_key)
+                                            secret_access_key,
+                                            endpoint_url)
 
         self.prefetch_multiplier = prefetch_multiplier
         self.worker_children = []

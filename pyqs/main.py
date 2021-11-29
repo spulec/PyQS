@@ -95,6 +95,15 @@ Run PyQS workers for the given queues
     )
 
     parser.add_argument(
+        "--endpoint-url",
+        dest="endpoint_url",
+        type=str,
+        default=None,
+        help="AWS SQS endpoint url",
+        action="store",
+    )
+
+    parser.add_argument(
         "--interval",
         dest="interval",
         type=float,
@@ -143,7 +152,8 @@ Run PyQS workers for the given queues
         interval=args.interval,
         batchsize=_set_batchsize(args),
         prefetch_multiplier=args.prefetch_multiplier,
-        simple_worker=args.simple_worker
+        simple_worker=args.simple_worker,
+        endpoint_url=args.endpoint_url,
     )
 
 
@@ -156,7 +166,7 @@ def _add_cwd_to_path():
 def _main(queue_prefixes, concurrency=5, logging_level="WARN",
           region=None, access_key_id=None, secret_access_key=None,
           interval=1, batchsize=DEFAULT_BATCH_SIZE, prefetch_multiplier=2,
-          simple_worker=False):
+          simple_worker=False, endpoint_url=None):
     logging.basicConfig(
         format="[%(levelname)s]: %(message)s",
         level=getattr(logging, logging_level),
@@ -168,12 +178,14 @@ def _main(queue_prefixes, concurrency=5, logging_level="WARN",
             queue_prefixes, concurrency, interval, batchsize,
             region=region, access_key_id=access_key_id,
             secret_access_key=secret_access_key,
+            endpoint_url=endpoint_url,
         )
     else:
         manager = ManagerWorker(
             queue_prefixes, concurrency, interval, batchsize,
             prefetch_multiplier=prefetch_multiplier, region=region,
             access_key_id=access_key_id, secret_access_key=secret_access_key,
+            endpoint_url=endpoint_url,
         )
 
     _add_cwd_to_path()
