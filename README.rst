@@ -78,7 +78,7 @@ To read tasks we need to run PyQS. If the task is already in your
 
     $ pyqs email.tasks.send_email
 
-If we want want to run all tasks with a certain prefix. This is based on
+If we want to run all tasks with a certain prefix. This is based on
 Python's `fnmatch <http://docs.python.org/2/library/fnmatch.html>`__.
 
 .. code:: bash
@@ -130,7 +130,7 @@ PyQS has an event registry which can be used to run a function before or after e
         print({"pre_process": context})
 
     def print_post_process(context):
-        print({"pre_process": context})
+        print({"post_process": context})
 
     events.register_event("pre_process", print_pre_process)
     events.register_event("post_process", print_post_process)
