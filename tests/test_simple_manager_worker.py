@@ -96,6 +96,7 @@ def test_main_method(SimpleManagerWorker):
     SimpleManagerWorker.assert_called_once_with(
         ['email1', 'email2'], 2, 1, 10,
         region=None, secret_access_key=None, access_key_id=None,
+        endpoint_url=None,
     )
     SimpleManagerWorker.return_value.start.assert_called_once_with()
 
@@ -111,6 +112,7 @@ def test_real_main_method(ArgumentParser, _main):
         concurrency=3, queues=["email1"], interval=1, batchsize=5,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
+        endpoint_url=None,
     )
     main()
 
@@ -118,6 +120,7 @@ def test_real_main_method(ArgumentParser, _main):
         queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=5,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
+        endpoint_url=None,
     )
 
 
@@ -132,6 +135,7 @@ def test_real_main_method_default_batchsize(ArgumentParser, _main):
         concurrency=3, queues=["email1"], interval=1, batchsize=None,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
+        endpoint_url=None,
     )
     main()
 
@@ -139,6 +143,7 @@ def test_real_main_method_default_batchsize(ArgumentParser, _main):
         queue_prefixes=['email1'], concurrency=3, interval=1, batchsize=1,
         logging_level="WARN", region='us-east-1', prefetch_multiplier=2,
         access_key_id=None, secret_access_key=None, simple_worker=True,
+        endpoint_url=None,
     )
 
 
